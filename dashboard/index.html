@@ -3593,15 +3593,20 @@ function refreshMedicalDial() {
 function wireUiToggle() {
   const btn = document.getElementById('uiToggleBtn');
   if (!btn) return;
-  btn.addEventListener('click', () => {
-    const hidden = document.body.classList.toggle('ui-hidden');
+  const setHidden = (hidden) => {
+    document.body.classList.toggle('ui-hidden', hidden);
     document.body.classList.toggle('show-capture-frame', hidden);
     btn.classList.toggle('active', hidden);
     if (hidden) fitMapToFrame();
     else        clearMapFit();
+  };
+  btn.addEventListener('click', () => {
+    setHidden(!document.body.classList.contains('ui-hidden'));
   });
   sizeCaptureFrame();
   window.addEventListener('resize', sizeCaptureFrame);
+  // Default landing state: UI hidden (capture-frame view with medical dial)
+  setHidden(true);
 }
 
 function wireCompass() {
