@@ -619,6 +619,13 @@ body.ui-hidden .watch-dial { display: none !important; }
   background: rgba(228, 62, 78, 0.5);
   margin: 14px auto 0 auto;
 }
+.capture-title-sub {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 300; font-size: 13px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(228, 228, 232, 0.72);
+  margin: 12px 0 0 0;
+}
 body.ui-hidden .capture-title { display: block; }
 
 /* Medical dial — clinical day/night indicator. Top-centre during UI-hidden
@@ -979,6 +986,7 @@ body.ui-hidden .medical-dial-mount { display: block; }
 <div class="capture-title">
   <h1>Brisbane Public Transport Heartbeat</h1>
   <div class="capture-title-rule"></div>
+  <div class="capture-title-sub" id="captureTitleSub">—</div>
 </div>
 
 <button class="ui-toggle" id="uiToggleBtn" title="Hide / show UI · also toggles capture frame" aria-label="Hide or show UI">UI</button>
@@ -2700,6 +2708,8 @@ function updateTotal() {
   }
   document.getElementById('totalTrips').textContent = fmtCompact(total);
   document.getElementById('totalLabel').textContent = `trips · ${formatMonthLabel(state.month).toLowerCase()}`;
+  const sub = document.getElementById('captureTitleSub');
+  if (sub) sub.textContent = formatMonthLabel(state.month);
 }
 
 function formatMonthLabel(ym) {
