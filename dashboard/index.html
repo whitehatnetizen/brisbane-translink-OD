@@ -1,0 +1,3704 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TransLink OD — South-East Queensland</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@300;400&family=IBM+Plex+Sans:wght@200;300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:,">
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --sidebar-w: 320px;
+}
+
+[data-theme="light"] {
+  --bg: #f6f1e8;
+  --bg-card: rgba(251, 247, 240, 0.92);
+  --bg-elev: #fbf7f0;
+  --border: #d9cfbf;
+  --border-soft: rgba(217, 207, 191, 0.4);
+  --text-primary: #2a2520;
+  --text-secondary: #6a6258;
+  --text-muted: #95897a;
+  --accent: #b8804a;
+  --accent-soft: rgba(184, 128, 74, 0.18);
+  --bus: #b8804a;
+  --rail: #961e28;
+  --light-rail: #c98b6a;
+  --ferry: #5d8aa8;
+  --shadow: 0 4px 20px rgba(60, 40, 20, 0.08);
+}
+
+[data-theme="dark"] {
+  --bg: #14110d;
+  --bg-card: rgba(29, 25, 21, 0.92);
+  --bg-elev: #1d1915;
+  --border: #322c25;
+  --border-soft: rgba(50, 44, 37, 0.5);
+  --text-primary: #ebe2d4;
+  --text-secondary: #a59b8d;
+  --text-muted: #6f6557;
+  --accent: #d8a06e;
+  --accent-soft: rgba(216, 160, 110, 0.2);
+  --bus: #d8a06e;
+  --rail: #b42837;
+  --light-rail: #f4ad88;
+  --ferry: #7eb1d1;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  transition: background 0.3s, color 0.3s;
+}
+
+#map { position: absolute; inset: 0; }
+/* Day/night tint — opacity driven by pulseTick when basemap is 'auto'. Sits
+   above the map canvas (and the deck overlay) so a single layer darkens the
+   whole scene. */
+#dayNightTint {
+  position: absolute; inset: 0; pointer-events: none;
+  background: rgb(10, 14, 28); opacity: 0; z-index: 1;
+}
+
+.sidebar {
+  position: absolute;
+  top: 16px; left: 16px; bottom: 16px;
+  width: var(--sidebar-w);
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.sidebar header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.55rem;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.subtitle {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.theme-toggle {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+.controls {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.control-group { margin-bottom: 18px; }
+.control-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.chip-row {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-elev);
+  font-weight: 500;
+}
+
+.chip-mode .chip { display: flex; align-items: center; gap: 6px; }
+.chip-mode .chip::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
+}
+.chip-mode .chip[data-mode="all"]::before { background: var(--text-secondary); }
+.chip-mode .chip[data-mode="Bus"]::before { background: var(--bus); }
+.chip-mode .chip[data-mode="Rail"]::before { background: var(--rail); }
+.chip-mode .chip[data-mode="Light Rail"]::before { background: var(--light-rail); }
+.chip-mode .chip[data-mode="Ferry"]::before { background: var(--ferry); }
+
+.cbd-card {
+  margin-top: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.cbd-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+}
+.cbd-row:last-child { margin-bottom: 0; }
+.cbd-row .label { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.cbd-row .num { color: var(--text-primary); font-weight: 500; }
+.cbd-ratio { color: var(--accent); font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; line-height: 1; margin: 6px 0 2px; }
+.cbd-ratio-label { color: var(--text-muted); font-size: 0.7rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.hub-list { list-style: none; }
+.hub-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.hub-list li:hover { background: var(--accent-soft); }
+.hub-list li:last-child { border-bottom: none; }
+.hub-name { color: var(--text-primary); font-size: 0.78rem; line-height: 1.25; }
+.hub-meta { color: var(--text-muted); font-size: 0.66rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.hub-count { color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; }
+
+.month-card {
+  position: absolute;
+  bottom: 16px; right: 16px;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: var(--shadow);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  z-index: 5;
+}
+.month-card .num {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.month-card .label { color: var(--text-muted); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.timebar {
+  position: absolute;
+  left: calc(var(--sidebar-w) + 32px);
+  right: 16px;
+  bottom: 16px;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 12px 16px 14px;
+  box-shadow: var(--shadow);
+  z-index: 5;
+  display: none;
+}
+.timebar.visible { display: block; }
+.timebar-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+.timebar-month {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.timebar-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.timebar-controls {
+  display: flex; align-items: center; gap: 12px;
+}
+.spark {
+  width: 100%;
+  height: 56px;
+  margin-bottom: 6px;
+  display: block;
+  cursor: pointer;
+}
+.spark .spark-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.spark .spark-area { fill: var(--accent-soft); }
+.spark .spark-cursor { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 2 2; }
+.spark .spark-dot { fill: var(--accent); }
+.spark .spark-year { stroke: var(--border); stroke-width: 0.5; opacity: 0.7; }
+.spark .spark-yearlabel { fill: var(--text-muted); font-family: var(--font-mono); font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.spark .spark-event { stroke: var(--text-muted); stroke-width: 1; opacity: 0.55; }
+.spark .spark-eventdot { fill: var(--text-secondary); cursor: help; opacity: 0.7; }
+.spark .spark-eventdot:hover { opacity: 1; fill: var(--accent); }
+.play-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+.play-btn:hover { border-color: var(--accent); color: var(--accent); }
+.play-btn.playing { background: var(--accent); border-color: var(--accent); color: var(--bg-elev); }
+.month-slider {
+  -webkit-appearance: none; appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.month-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bg-card);
+}
+.month-slider::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bg-card);
+}
+
+.hb-grid {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr;
+  gap: 4px;
+  align-items: center;
+}
+.hb-grid .hb-corner { font-size: 0; }
+.hb-grid .hb-col-label,
+.hb-grid .hb-row-label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.hb-grid .hb-row-label { text-align: left; }
+.hb-grid .hb-col-label.origin { color: #d8743e; }
+.hb-grid .hb-col-label.dest { color: #4a8fb8; }
+[data-theme="dark"] .hb-grid .hb-col-label.origin { color: #ff8c50; }
+[data-theme="dark"] .hb-grid .hb-col-label.dest { color: #6dbcdc; }
+
+.hb-pill {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hb-pill:hover { border-color: var(--accent); color: var(--accent); }
+.hb-pill.active.origin {
+  background: #d8743e;
+  border-color: #d8743e;
+  color: #fff;
+  font-weight: 500;
+}
+.hb-pill.active.dest {
+  background: #4a8fb8;
+  border-color: #4a8fb8;
+  color: #fff;
+  font-weight: 500;
+}
+[data-theme="dark"] .hb-pill.active.origin { background: #ff8c50; border-color: #ff8c50; color: #14110d; }
+[data-theme="dark"] .hb-pill.active.dest { background: #6dbcdc; border-color: #6dbcdc; color: #14110d; }
+
+.hb-render-row { margin-top: 8px; }
+.hb-pulse-row { margin-top: 6px; }
+.hb-pulse-row .chip { width: 100%; justify-content: center; display: flex; }
+.hb-pulse-row .chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-elev);
+  font-weight: 500;
+}
+
+/* Sun/moon complication — replaces the old flow-lines legend. A rotating
+   disc behind a horizon-window: sun rides the upper half during AM/Mid/PM,
+   moon takes over for evening. Month is the headline label underneath. */
+.watch-dial {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 10px 14px 10px;
+  box-shadow: var(--shadow);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 158px;
+}
+.watch-dial svg { width: 100%; height: auto; display: block; }
+.dial-disc { transition: transform 0.25s linear; transform-origin: 60px 80px; }
+.dial-window {
+  position: relative;
+  width: 100%;
+}
+.dial-lottie {
+  position: absolute;
+  /* Aligns with the SVG sky window: x=8/120, y=8/70, w=104/120, h=50/70 */
+  top: 11.4%;
+  left: 6.7%;
+  width: 86.7%;
+  height: 71.4%;
+  pointer-events: none;
+}
+.dial-lottie svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+.dial-stars circle { transition: opacity 0.6s linear; }
+.dial-month {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  letter-spacing: 0.005em;
+  line-height: 1;
+}
+.dial-time {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.dial-counts {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.dial-counts .arrow-in { color: #6dbcdc; font-weight: 600; }
+.dial-counts .arrow-out { color: #ff8c50; font-weight: 600; }
+
+.footer {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border-soft);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.footer a { color: var(--text-secondary); }
+
+.loading {
+  position: absolute; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  z-index: 100;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.loading.hidden { display: none; }
+
+.mlmap-attribution { font-size: 0.65rem !important; }
+.maplibregl-ctrl-attrib-button { display: none !important; }
+
+@media (max-width: 720px) {
+  .sidebar { left: 8px; right: 8px; bottom: auto; width: auto; max-height: 50vh; top: 8px; }
+  .month-card { bottom: 8px; right: 8px; }
+  .legend { display: none; }
+  .timebar { left: 8px; right: 8px; bottom: 60px; }
+}
+
+/* Tidal panel — appears when a stop is selected */
+.tidal-panel {
+  margin-top: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: none;
+}
+.tidal-panel.visible { display: block; }
+.tidal-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.tidal-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.tidal-mode {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.tidal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+}
+.tidal-close:hover { color: var(--accent); }
+.tidal-svg { width: 100%; height: 90px; display: block; }
+.tidal-svg .tidal-bar-in { fill: #4a8fb8; opacity: 0.8; }
+.tidal-svg .tidal-bar-out { fill: #d8743e; opacity: 0.8; }
+[data-theme="dark"] .tidal-svg .tidal-bar-in { fill: #6dbcdc; }
+[data-theme="dark"] .tidal-svg .tidal-bar-out { fill: #ff8c50; }
+.tidal-svg .tidal-axis { stroke: var(--border); stroke-width: 0.5; }
+.tidal-svg .tidal-label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tidal-foot {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Constellation mode hides the basemap layer */
+body.constellation #map { background: #07070a; }
+body.constellation .maplibregl-canvas { opacity: 0.05; }
+
+/* Capture-frame outline — shows the 16:9 region that will end up in the GIF
+   when scripts/capture-gif.js runs at its 1920×1080 viewport. Sized at runtime
+   to fit the current window with margin, centred, faint dotted white. */
+#captureFrame {
+  position: fixed;
+  pointer-events: none;
+  border: 1px dashed rgba(255, 255, 255, 0.42);
+  border-radius: 2px;
+  z-index: 4;
+  display: none;
+}
+body.show-capture-frame #captureFrame { display: block; }
+
+/* Hide-UI mode — preview what the capture will look like. Keeps the compass
+   and capture-toggle visible so you can pop back out. */
+body.ui-hidden .sidebar,
+body.ui-hidden .timebar,
+body.ui-hidden .month-card,
+body.ui-hidden .watch-dial { display: none !important; }
+
+/* UI-toggle button — sits above the compass, same visual language */
+.ui-toggle {
+  position: absolute;
+  bottom: 230px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 14px;
+  color: var(--text-primary);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.ui-toggle:hover { border-color: var(--accent); transform: scale(1.05); }
+.ui-toggle.active { border-color: var(--accent); color: var(--accent); }
+
+/* Capture title — overlaid above the medical dial during captures. */
+.capture-title {
+  position: absolute;
+  top: 28px; left: 50%; transform: translateX(-50%);
+  text-align: center; pointer-events: none; user-select: none;
+  z-index: 5;
+  display: none;
+}
+.capture-title h1 {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-weight: 300; font-size: 32px; letter-spacing: 0.08em;
+  color: rgba(228, 228, 232, 0.92);
+  margin: 0; line-height: 1;
+}
+.capture-title-rule {
+  width: 64px; height: 1px;
+  background: rgba(228, 62, 78, 0.5);
+  margin: 14px auto 0 auto;
+}
+body.ui-hidden .capture-title { display: block; }
+
+/* Medical dial — clinical day/night indicator. Top-centre during UI-hidden
+   mode and GIF captures, sits below the capture title. */
+.medical-dial-mount {
+  position: absolute;
+  top: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+  display: none;
+}
+body.ui-hidden .medical-dial-mount { display: block; }
+
+/* Compass — sits above the month card, resets bearing+pitch when clicked */
+.compass {
+  position: absolute;
+  bottom: 178px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  z-index: 5;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.compass:hover { border-color: var(--accent); transform: scale(1.05); }
+.compass svg { width: 100%; height: 100%; display: block; }
+.compass-needle {
+  transform-origin: 22px 22px;
+  transition: transform 0.18s ease-out;
+}
+.compass-n { fill: #c0392b; }
+[data-theme="dark"] .compass-n { fill: #e85a4a; }
+.compass-s { fill: var(--text-secondary); }
+.compass-ring { fill: none; stroke: var(--border); stroke-width: 0.6; }
+.compass-label {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+
+.bm-row .chip { font-size: 0.74rem; padding: 4px 8px; }
+
+.fx-row .chip { font-size: 0.74rem; padding: 4px 8px; }
+
+.preset-row { gap: 4px; flex-wrap: wrap; }
+.preset-row .chip { font-size: 0.74rem; padding: 4px 8px; }
+
+.gallery-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px dashed var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.gallery-link:hover {
+  background: var(--accent-soft);
+}
+
+/* Camera readout — live position/angle for GIF capture scripting */
+.cam-panel {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+.cam-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.cam-row:last-child { margin-bottom: 0; }
+.cam-key {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.6rem;
+  flex-shrink: 0;
+}
+.cam-val { color: var(--text-primary); }
+.cam-copy {
+  width: 100%;
+  margin-top: 6px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="dayNightTint" aria-hidden="true"></div>
+<div id="captureFrame" aria-hidden="true"></div>
+
+<div class="sidebar">
+  <header>
+    <div>
+      <h1>TransLink OD</h1>
+      <div class="subtitle">South-East Queensland · v0</div>
+    </div>
+    <button class="theme-toggle" id="themeBtn">Dark</button>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <span class="control-label">Mode</span>
+      <div class="chip-row chip-mode" id="modeChips">
+        <button class="chip" data-mode="all">All</button>
+        <button class="chip active" data-mode="Bus">Bus</button>
+        <button class="chip" data-mode="Rail">Rail</button>
+        <button class="chip" data-mode="Light Rail">G:link</button>
+        <button class="chip" data-mode="Ferry">Ferry</button>
+      </div>
+    </div>
+
+    <div class="control-group" style="display: none">
+      <span class="control-label">Flow lines</span>
+      <div class="chip-row" id="viewChips">
+        <button class="chip" data-view="arcs">Arcs</button>
+        <button class="chip" data-view="dots">Trip dots</button>
+        <button class="chip" data-view="hex">Hex</button>
+        <button class="chip" data-view="spider">Spider</button>
+        <button class="chip active" data-view="none">Off</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Daily heartbeat</span>
+      <div class="hb-grid" id="hbGrid">
+        <div class="hb-corner"></div>
+        <div class="hb-col-label origin">Origin</div>
+        <div class="hb-col-label dest">Destination</div>
+        <div class="hb-row-label">AM</div>
+        <button class="hb-pill" data-bucket="wd_early" data-side="origin">●</button>
+        <button class="hb-pill" data-bucket="wd_early" data-side="dest">●</button>
+        <div class="hb-row-label">Mid</div>
+        <button class="hb-pill" data-bucket="wd_mid" data-side="origin">●</button>
+        <button class="hb-pill" data-bucket="wd_mid" data-side="dest">●</button>
+        <div class="hb-row-label">PM</div>
+        <button class="hb-pill" data-bucket="wd_pmpeak" data-side="origin">●</button>
+        <button class="hb-pill" data-bucket="wd_pmpeak" data-side="dest">●</button>
+        <div class="hb-row-label">Eve</div>
+        <button class="hb-pill" data-bucket="wd_eve" data-side="origin">●</button>
+        <button class="hb-pill" data-bucket="wd_eve" data-side="dest">●</button>
+      </div>
+      <div class="chip-row" id="hbPulseStyleChips" style="margin-top: 8px">
+        <button class="chip" data-pulse-style="migrate">Migrate</button>
+        <button class="chip active" data-pulse-style="massStream">Mass+stream</button>
+      </div>
+      <div class="chip-row" style="margin-top: 6px">
+        <button class="chip active" id="peakOnlyChip">Peak only · AM + PM</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.74rem; color: var(--text-secondary); font-family: var(--font-mono)">
+        <span style="flex-shrink: 0">Speed</span>
+        <input type="range" id="speedSlider" min="0.25" max="3" step="0.25" value="1" style="flex: 1">
+        <span id="speedReadout" style="flex-shrink: 0; min-width: 36px; text-align: right">1.00×</span>
+      </div>
+      <div class="chip-row hb-pulse-row">
+        <button class="chip" id="pulseBtn">▶ Pulse animation</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Layers</span>
+      <div class="chip-row" id="layerChips">
+        <button class="chip active" data-layer="network">Show network</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Particle effects</span>
+      <div class="chip-row fx-row" id="fxChips">
+        <button class="chip" data-fx="streak">Streak</button>
+        <button class="chip" data-fx="glow">Glow</button>
+        <button class="chip" data-fx="bokeh">Bokeh</button>
+      </div>
+      <div class="chip-row preset-row" style="margin-top: 6px">
+        <button class="chip" data-preset="movie">★ Movie mode</button>
+        <button class="chip" data-preset="reset">Reset</button>
+      </div>
+      <div class="chip-row" style="margin-top: 6px">
+        <button class="chip active" id="anchorsChip">Show O/D anchors</button>
+        <button class="chip" id="presenceChip">Presence glow</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Recolour by anomaly</span>
+      <div class="chip-row" id="anomalyChips">
+        <button class="chip" data-anomaly="off">Off</button>
+        <button class="chip" data-anomaly="flow">Flow vs typical</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Basemap</span>
+      <div class="chip-row bm-row" id="bmChips">
+        <button class="chip active" data-bm="auto">Auto</button>
+        <button class="chip" data-bm="dark">Dark</button>
+        <button class="chip" data-bm="voyager">Voyager</button>
+        <button class="chip" data-bm="watercolour">Watercolour</button>
+        <button class="chip" data-bm="satellite">Satellite</button>
+        <button class="chip" data-bm="constellation">★ Constellation</button>
+      </div>
+      <div class="chip-row" style="margin-top: 6px">
+        <button class="chip active" id="dayNightChip">Day/Night cycle</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Map labels</span>
+      <div class="chip-row" id="labelChips">
+        <button class="chip" data-label="hideAll">Hide all places</button>
+        <button class="chip" data-label="hideBrisbane">Hide "Brisbane"</button>
+      </div>
+      <div style="font-size: 0.66rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px">
+        works on Auto / Voyager only — constellation, watercolour, satellite have no editable labels
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Stop detail</span>
+      <div class="tidal-panel" id="tidalPanel">
+        <div class="tidal-head">
+          <div>
+            <div class="tidal-name" id="tidalName">—</div>
+            <div class="tidal-mode" id="tidalMode">—</div>
+          </div>
+          <button class="tidal-close" id="tidalClose">×</button>
+        </div>
+        <svg class="tidal-svg" id="tidalSvg" viewBox="0 0 280 90" preserveAspectRatio="none"></svg>
+        <div class="tidal-foot" id="tidalFoot">—</div>
+      </div>
+      <div id="tidalHint" style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">click any hub or stop to inspect</div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Camera</span>
+      <div class="cam-panel" id="camPanel">
+        <div class="cam-row"><span class="cam-key">Centre</span><span class="cam-val" id="camCenter">—</span></div>
+        <div class="cam-row"><span class="cam-key">Zoom</span><span class="cam-val" id="camZoom">—</span></div>
+        <div class="cam-row"><span class="cam-key">Bearing</span><span class="cam-val" id="camBearing">—</span></div>
+        <div class="cam-row"><span class="cam-key">Pitch</span><span class="cam-val" id="camPitch">—</span></div>
+      </div>
+      <button class="chip cam-copy" id="camCopyBtn">Copy camera</button>
+      <button class="chip cam-copy" id="presetCopyBtn">Copy full preset</button>
+    </div>
+
+    <div class="control-group">
+      <a class="gallery-link" href="gallery.html" target="_blank" rel="noopener">→ Open visualisation gallery</a>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Brisbane CBD flow</span>
+      <div class="cbd-card" id="cbdCard">
+        <div class="cbd-ratio" id="cbdRatio">—</div>
+        <div class="cbd-ratio-label" id="cbdRatioLabel">inbound : outbound</div>
+        <div style="height: 10px"></div>
+        <div class="cbd-row"><span class="label">Into CBD</span><span class="num" id="cbdIn">—</span></div>
+        <div class="cbd-row"><span class="label">Out of CBD</span><span class="num" id="cbdOut">—</span></div>
+        <div class="cbd-row"><span class="label">Within CBD</span><span class="num" id="cbdIntra">—</span></div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Top hubs (inbound)</span>
+      <ul class="hub-list" id="hubList"></ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    Source: <a href="https://www.data.qld.gov.au/dataset/translink-origin-destination-trips-2022-onwards" target="_blank" rel="noopener">data.qld.gov.au — Translink OD trips</a> · CC BY 4.0. Excludes Airtrain. Stops file dated Jan 2025; ~0.6% of Mar 2026 trips reference unmatched stop IDs.<br>
+    Time-series spans Jun 2016 → Mar 2026: pre-COVID baseline, the March-2020 cliff, lockdown trough, and ongoing recovery — visible as a U-shape in the sparkline above.
+  </div>
+</div>
+
+<div class="watch-dial" id="watchDial">
+  <div class="dial-window">
+    <svg viewBox="0 0 120 70">
+      <defs>
+        <clipPath id="dialClip">
+          <rect x="8" y="8" width="104" height="50" rx="5"/>
+        </clipPath>
+        <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop id="skyStop1" offset="0%"  stop-color="#5b87c4" stop-opacity="0.55"/>
+          <stop id="skyStop2" offset="40%" stop-color="#82b4dd" stop-opacity="0.4"/>
+          <stop id="skyStop3" offset="70%" stop-color="#a8c8e6" stop-opacity="0.45"/>
+          <stop id="skyStop4" offset="100%" stop-color="#1f3760" stop-opacity="0.55"/>
+        </linearGradient>
+      </defs>
+      <rect x="8" y="8" width="104" height="50" rx="5" fill="url(#skyGrad)"/>
+      <g clip-path="url(#dialClip)">
+        <!-- Star field — opacity controlled per-star at night -->
+        <g class="dial-stars" id="dialStars">
+          <circle cx="20" cy="18" r="0.6" fill="#ffffff" opacity="0"/>
+          <circle cx="32" cy="14" r="0.4" fill="#ffffff" opacity="0"/>
+          <circle cx="44" cy="20" r="0.5" fill="#ffffff" opacity="0"/>
+          <circle cx="56" cy="13" r="0.7" fill="#ffffff" opacity="0"/>
+          <circle cx="71" cy="17" r="0.4" fill="#ffffff" opacity="0"/>
+          <circle cx="84" cy="12" r="0.6" fill="#ffffff" opacity="0"/>
+          <circle cx="96" cy="20" r="0.5" fill="#ffffff" opacity="0"/>
+          <circle cx="105" cy="14" r="0.4" fill="#ffffff" opacity="0"/>
+          <circle cx="14" cy="32" r="0.5" fill="#ffffff" opacity="0"/>
+          <circle cx="26" cy="36" r="0.4" fill="#ffffff" opacity="0"/>
+          <circle cx="100" cy="34" r="0.6" fill="#ffffff" opacity="0"/>
+          <circle cx="78" cy="38" r="0.4" fill="#ffffff" opacity="0"/>
+        </g>
+      </g>
+      <!-- Subtle horizon line across the window -->
+      <line x1="8" y1="48" x2="112" y2="48" stroke="#ffffff" stroke-width="0.4" opacity="0.25"/>
+      <!-- Frame -->
+      <rect x="8" y="8" width="104" height="50" rx="5" fill="none" stroke="var(--border)" stroke-width="0.8"/>
+    </svg>
+    <!-- Lottie sun/moon switch — frame scrubbed by dayPos -->
+    <div class="dial-lottie" id="dialLottie"></div>
+  </div>
+  <div class="dial-month" id="dialMonth">—</div>
+  <div class="dial-counts">
+    <span><span class="arrow-in">↗</span> <span id="dialIn">—</span></span>
+    <span style="opacity: 0.4">·</span>
+    <span><span class="arrow-out">↙</span> <span id="dialOut">—</span></span>
+  </div>
+  <div class="dial-time" id="dialTime">—</div>
+</div>
+
+<div class="month-card">
+  <div class="num" id="totalTrips">—</div>
+  <div class="label" id="totalLabel">trips this month</div>
+</div>
+
+<!-- Clinical day/night dial (GIS.medicalDial). Sits in the top-left, stays
+     visible during UI-hidden mode and GIF captures. -->
+<div id="medicalDialMount" class="medical-dial-mount"></div>
+
+<!-- Capture title — overlaid on the map during UI-hidden mode and GIF
+     captures. Hidden during normal dashboard use. -->
+<div class="capture-title">
+  <h1>Brisbane Public Transport Heartbeat</h1>
+  <div class="capture-title-rule"></div>
+</div>
+
+<button class="ui-toggle" id="uiToggleBtn" title="Hide / show UI · also toggles capture frame" aria-label="Hide or show UI">UI</button>
+
+<button class="compass" id="compass" title="Reset to north · flat" aria-label="Reset bearing and pitch">
+  <svg viewBox="0 0 44 44">
+    <circle class="compass-ring" cx="22" cy="22" r="18"/>
+    <g class="compass-needle" id="compassNeedle">
+      <polygon class="compass-n" points="22,7 26,22 22,20 18,22"/>
+      <polygon class="compass-s" points="22,37 26,22 22,24 18,22"/>
+      <text class="compass-label" x="22" y="6" text-anchor="middle">N</text>
+    </g>
+  </svg>
+</button>
+
+<div class="timebar" id="timebar">
+  <div class="timebar-head">
+    <div>
+      <div class="timebar-month" id="timebarMonth">—</div>
+      <div class="timebar-meta" id="timebarMeta">month · 1/1</div>
+    </div>
+    <div class="timebar-meta" id="timebarHint">drag · play · click sparkline</div>
+  </div>
+  <svg class="spark" id="spark" viewBox="0 0 800 56" preserveAspectRatio="none"></svg>
+  <div class="timebar-controls">
+    <button class="play-btn" id="playBtn">▶ Play</button>
+    <input type="range" class="month-slider" id="monthSlider" min="0" max="0" step="1" value="0">
+  </div>
+</div>
+
+<div class="loading" id="loading">Loading TransLink data...</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/deck.gl@9.0.36/dist.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie_light.min.js"></script>
+<!-- Shared GIS component: clinical day/night dial. Source of truth lives at
+     1-research/gis-skunkworks/_components/medical-dial.js — keep in sync. -->
+<script src="medical-dial.js"></script>
+<script>
+'use strict';
+
+const MODE_COLOURS_LIGHT = {
+  'Bus': [184, 128, 74],
+  'Rail': [150, 30, 40],
+  'Light Rail': [201, 139, 106],
+  'Ferry': [93, 138, 168]
+};
+const MODE_COLOURS_DARK = {
+  'Bus': [216, 160, 110],
+  'Rail': [180, 40, 55],
+  'Light Rail': [244, 173, 136],
+  'Ferry': [126, 177, 209]
+};
+
+const state = {
+  month: '2019-09',
+  mode: 'all',
+  bucket: 'all',
+  view: 'none',
+  showNetwork: true,
+  heartbeat: {
+    bucket: null,
+    origin: false,
+    dest: false,
+    pulseStyle: 'massStream',
+    peakOnly: false,                                       // cycle all four buckets
+    pulse: false,
+    pulseStartMs: 0,
+    pulseBucketIdx: 0,
+    pulseProgress: 0,
+    pulseRaf: null,
+    lastPulseIdx: -1
+  },
+  fx: { streak: false, glow: true, bokeh: true },        // glow + bokeh, no streak
+  showAnchors: false,
+  presenceMode: true,
+  presenceCache: null,
+  presenceCacheKey: null,
+  anomalyMode: 'flow',                                     // recolour particles by deviation
+  basemap: 'auto',                                         // positron + day/night tint
+  dayNightCycle: true,                                     // tint overlay follows AM/midday/PM/eve
+  pulseSpeed: 1,                                           // 1× = real PULSE_BUCKET_TOTAL_MS per bucket
+  selectedStop: null,
+  labelOverrides: { hideAll: true, hideBrisbane: false },  // no place labels in the GIF
+  originalLabelState: null,
+  anomalyCache: null,
+  // Auto-start pulse + month-walk after data loads — flip to false if you want
+  // a quiet initial state.
+  autoStart: true,
+  data: null,
+  map: null,
+  overlay: null
+};
+
+const fmt = n => n == null ? '—' : n.toLocaleString();
+const fmtCompact = n => {
+  if (n == null) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(n);
+};
+
+async function loadData() {
+  const [stops, months, stable, hubs, cbd, network, ferryPaths, railPaths, busPaths] = await Promise.all([
+    fetch('../data/build/stops.json').then(r => r.json()),
+    fetch('../data/build/months.json').then(r => r.json()),
+    fetch('../data/build/stable_flows.json').then(r => r.json()),
+    fetch('../data/build/hubs.json').then(r => r.json()),
+    fetch('../data/build/cbd.json').then(r => r.json()),
+    fetch('../data/build/network.json').then(r => r.json()).catch(() => null),
+    fetch('../data/build/ferry_paths.json').then(r => r.json()).catch(() => null),
+    fetch('../data/build/rail_paths.json').then(r => r.json()).catch(() => null),
+    fetch('../data/build/bus_paths.json').then(r => r.json()).catch(() => null)
+  ]);
+  return { stops, months, stable, hubs, cbd, network, ferryPaths, railPaths, busPaths };
+}
+
+// Build a maplibre style for the current basemap selection. Returns either a
+// URL string or an inline style object — both accepted by the Map constructor
+// and setStyle(). Constellation collapses to a transparent style so geography
+// emerges from the pulse particles alone.
+function basemapStyle() {
+  const bm = state.basemap;
+  if (bm === 'auto') {
+    // Always serve positron; the day/night tint overlay (driven by pulseTick)
+    // does the dark-mode work, so the underlying tiles must stay light.
+    return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+  }
+  if (bm === 'dark') {
+    return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+  }
+  if (bm === 'voyager') {
+    return 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+  }
+  if (bm === 'watercolour') {
+    // Stadia hosts the legacy Stamen tiles. Localhost works without a key;
+    // public deploys would need to register a domain.
+    return {
+      version: 8,
+      sources: {
+        watercolour: {
+          type: 'raster',
+          tiles: ['https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg'],
+          tileSize: 256,
+          attribution: 'Map tiles by <a href="https://stamen.com">Stamen Design</a>, hosted by <a href="https://stadiamaps.com">Stadia Maps</a>; data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        },
+        labels: {
+          type: 'raster',
+          tiles: ['https://stamen-tiles.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png'],
+          tileSize: 256
+        }
+      },
+      layers: [
+        { id: 'watercolour-layer', type: 'raster', source: 'watercolour' }
+      ]
+    };
+  }
+  if (bm === 'satellite') {
+    return {
+      version: 8,
+      sources: {
+        sat: {
+          type: 'raster',
+          tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+          tileSize: 256,
+          attribution: 'Tiles © Esri'
+        }
+      },
+      layers: [{ id: 'sat-layer', type: 'raster', source: 'sat' }]
+    };
+  }
+  if (bm === 'constellation') {
+    // Plain transparent style — geography is implied entirely by the data.
+    return {
+      version: 8,
+      sources: {},
+      layers: [
+        { id: 'background', type: 'background', paint: { 'background-color': '#07070a' } }
+      ]
+    };
+  }
+  return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+}
+
+// Default view — chosen for the GIF capture angle: looking north over
+// Brisbane from the south-east, ~10 zoom so the whole CBD reads, with
+// pitch and bearing that emphasise the river curve into the city.
+const DEFAULT_VIEW = {
+  center: [153.05022, -27.68045],
+  zoom: 10,
+  bearing: 33.3,
+  pitch: 57.5
+};
+
+function initMap() {
+  state.map = new maplibregl.Map({
+    container: 'map',
+    style: basemapStyle(),
+    center: DEFAULT_VIEW.center,
+    zoom: DEFAULT_VIEW.zoom,
+    bearing: DEFAULT_VIEW.bearing,
+    pitch: DEFAULT_VIEW.pitch,
+    attributionControl: false
+  });
+  state.map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-left');
+  state.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+  state.map.on('load', () => {
+    state.overlay = new deck.MapboxOverlay({ layers: buildLayers() });
+    state.map.addControl(state.overlay);
+    applyLabelOverrides();
+  });
+}
+
+// Swap the basemap underneath the deck overlay without losing it. Mirrors the
+// pattern in wireTheme.
+function swapBasemap() {
+  if (!state.map) return;
+  document.body.classList.toggle('constellation', state.basemap === 'constellation');
+  // Tint only applies when 'auto' is selected; clear it for any other basemap.
+  if (state.basemap !== 'auto') updateDayNightTint(null, 0);
+  state.map.setStyle(basemapStyle());
+  state.map.once('style.load', () => {
+    state.map.addControl(state.overlay);
+    if (state.overlay) state.overlay.setProps({ layers: buildLayers() });
+    // New style → forget recorded label state and re-apply overrides.
+    state.originalLabelState = null;
+    applyLabelOverrides();
+  });
+}
+
+// Hide / filter place-name labels on vector basemaps. Detects label layers
+// heuristically (type=symbol, id matches place / city / state / etc.) so the
+// same code works across CARTO Positron / Voyager / Dark Matter without
+// hard-coding per-style layer IDs. Watercolour & Satellite are raster-only;
+// their labels are baked into the tiles, so this has no effect on them.
+function applyLabelOverrides() {
+  if (!state.map || !state.map.isStyleLoaded()) return;
+  const style = state.map.getStyle();
+  if (!style || !style.layers) return;
+  const labelIds = style.layers
+    .filter(l => l.type === 'symbol' && /place|city|state|country|town|village|admin|locality/i.test(l.id))
+    .map(l => l.id);
+  // Snapshot original filter + visibility per layer. Re-capture if EITHER
+  // we have no cache OR any current layer is missing from the cache (which
+  // happens after a basemap swap — style.load can fire before label layers
+  // are queryable, leaving us with an empty cache).
+  let needRecapture = !state.originalLabelState;
+  if (!needRecapture) {
+    for (const id of labelIds) {
+      if (!(id in state.originalLabelState)) { needRecapture = true; break; }
+    }
+  }
+  if (needRecapture) {
+    state.originalLabelState = {};
+    for (const id of labelIds) {
+      state.originalLabelState[id] = {
+        filter: state.map.getFilter(id) ?? null,
+        visibility: state.map.getLayoutProperty(id, 'visibility') || 'visible'
+      };
+    }
+  }
+  const ov = state.labelOverrides;
+  for (const id of labelIds) {
+    const orig = state.originalLabelState[id];
+    if (!orig) continue;
+    if (ov.hideAll) {
+      state.map.setLayoutProperty(id, 'visibility', 'none');
+      continue;
+    }
+    state.map.setLayoutProperty(id, 'visibility', orig.visibility);
+    if (ov.hideBrisbane) {
+      // CARTO basemaps use the legacy filter syntax (['op', 'key', 'value'])
+      // not modern expressions ([op, ['get', key], value]). Mixing the two
+      // throws style validation errors. Use legacy form so it composes
+      // cleanly with the original filter.
+      const brisbaneFilter = ['all',
+        ['!=', 'name', 'Brisbane'],
+        ['!=', 'name_en', 'Brisbane']
+      ];
+      const combined = orig.filter ? ['all', orig.filter, brisbaneFilter] : brisbaneFilter;
+      try { state.map.setFilter(id, combined); } catch (e) { /* layer rejects expression */ }
+    } else {
+      try { state.map.setFilter(id, orig.filter); } catch (e) {}
+    }
+  }
+}
+
+function activeModes() {
+  return state.mode === 'all' ? Object.keys(MODE_COLOURS_LIGHT) : [state.mode];
+}
+function activeBuckets() {
+  return state.bucket === 'all' ? ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'] : [state.bucket];
+}
+
+// Build the stable arc set for the current filter — same identity across months.
+// Recomputed only when filter changes, NOT when month changes.
+function buildStableArcs() {
+  const stable = state.data.stable.flows;
+  const stops = state.data.stops;
+  const acc = new Map();
+  for (const mode of activeModes()) {
+    for (const bucket of activeBuckets()) {
+      const rows = stable[`${mode}|${bucket}`] || [];
+      for (const [o, d, qs] of rows) {
+        if (o === d) continue;
+        const k = `${mode}\t${o}\t${d}`;
+        const cur = acc.get(k);
+        if (cur) {
+          for (let i = 0; i < cur.qs.length; i++) cur.qs[i] += qs[i];
+        } else {
+          acc.set(k, { mode, o, d, qs: qs.slice() });
+        }
+      }
+    }
+  }
+  // Resolve coords + drop pairs missing geocoding
+  const arcs = [];
+  let globalMax = 0;
+  for (const a of acc.values()) {
+    const so = stops[a.o], sd = stops[a.d];
+    if (!so || !sd) continue;
+    let pairMax = 0;
+    for (const q of a.qs) if (q > pairMax) pairMax = q;
+    if (pairMax > globalMax) globalMax = pairMax;
+    arcs.push({
+      source: [so[3], so[2]],
+      target: [sd[3], sd[2]],
+      mode: a.mode,
+      qs: a.qs,
+      lifetime: a.qs.reduce((x, y) => x + y, 0),
+      sourceName: so[0],
+      targetName: sd[0]
+    });
+  }
+  state.cachedArcs = arcs;
+  state.cachedMax = globalMax;
+  return arcs;
+}
+
+// Dot-swarm view: synthetic trips along great-circle paths within a fixed
+// looping period. Trip count per arc is sampled from current-month qty.
+function buildDotLayer(arcs, palette, monthIdx, widthScale) {
+  const PERIOD = 8000;              // milliseconds for one trip end-to-end
+  const TARGET_TOTAL = 15000;       // total dots in the swarm
+  const isDark = document.documentElement.dataset.theme === 'dark';
+
+  // Compute qty for each arc at this month, keep only positive
+  let totalQ = 0;
+  const items = [];
+  for (const a of arcs) {
+    const q = a.qs[monthIdx] || 0;
+    if (q <= 0) continue;
+    totalQ += q;
+    items.push([a, q]);
+  }
+  if (items.length === 0) return null;
+  const sampleScale = TARGET_TOTAL / totalQ;
+
+  // For each arc, emit N dots = scaled qty (at least 1 if scale>0). Each dot
+  // gets a random phase offset so they're spread out over the period.
+  const trips = [];
+  for (const [a, q] of items) {
+    const n = Math.max(1, Math.round(q * sampleScale));
+    for (let k = 0; k < n; k++) {
+      const phase = Math.random() * PERIOD;
+      trips.push({
+        path: [a.source, a.target],
+        timestamps: [phase, phase + PERIOD * 0.6],
+        mode: a.mode
+      });
+    }
+  }
+
+  // Animate currentTime via the global animation loop
+  if (!state.animFrame) {
+    const start = performance.now();
+    const tick = (now) => {
+      state.animTime = (now - start) % (PERIOD * 1.0);
+      if (state.overlay && state.view === 'dots') {
+        state.overlay.setProps({ layers: buildLayers() });
+      }
+      if (state.view === 'dots') {
+        state.animFrame = requestAnimationFrame(tick);
+      } else {
+        state.animFrame = null;
+      }
+    };
+    state.animFrame = requestAnimationFrame(tick);
+  }
+
+  return new deck.TripsLayer({
+    id: 'dots',
+    data: trips,
+    getPath: d => d.path,
+    getTimestamps: d => d.timestamps,
+    getColor: d => [...palette[d.mode], 200],
+    opacity: 0.85,
+    widthMinPixels: 1.5,
+    widthMaxPixels: 4,
+    rounded: true,
+    fadeTrail: true,
+    trailLength: PERIOD * 0.25,
+    currentTime: state.animTime || 0,
+    parameters: { depthTest: false }
+  });
+}
+
+function buildNetworkLayer() {
+  if (!state.showNetwork || !state.data || !state.data.network) return null;
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const palette = isDark ? MODE_COLOURS_DARK : MODE_COLOURS_LIGHT;
+  const activeSet = new Set(activeModes());
+  const paths = [];
+  for (const rid in state.data.network) {
+    const r = state.data.network[rid];
+    if (!activeSet.has(r.mode)) continue;
+    if (!r.points || r.points.length < 2) continue;
+    paths.push({ path: r.points, mode: r.mode, name: r.name, longName: r.long_name });
+  }
+  return new deck.PathLayer({
+    id: 'network',
+    data: paths,
+    pickable: false,
+    getPath: d => d.path,
+    getColor: d => [...(palette[d.mode] || [120, 120, 120]), isDark ? 70 : 60],
+    getWidth: 1.2,
+    widthMinPixels: 1,
+    widthMaxPixels: 2,
+    parameters: { depthTest: false }
+  });
+}
+
+// Hexbin extrusion: aggregates all destination points (weighted by trip
+// volume) into hexagons, extruded by demand. Reads as a 3D mass map of
+// "where do trips end up" at the current month.
+function buildHexLayer(arcs, monthIdx) {
+  const points = [];
+  for (const a of arcs) {
+    const q = a.qs[monthIdx] || 0;
+    if (q <= 0) continue;
+    points.push({ position: a.target, q });
+  }
+  if (points.length === 0) return null;
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  // Warm-to-bright ramp for both themes, slightly different to read against
+  // each basemap.
+  const colorRange = isDark
+    ? [[40, 30, 60], [80, 50, 90], [140, 80, 90], [200, 130, 90], [240, 180, 100], [255, 220, 130]]
+    : [[100, 130, 170], [140, 160, 180], [200, 170, 130], [220, 140, 90], [200, 100, 70], [160, 70, 60]];
+  return new deck.HexagonLayer({
+    id: 'hex-extruded',
+    data: points,
+    getPosition: d => d.position,
+    getElevationWeight: d => d.q,
+    getColorWeight: d => d.q,
+    elevationScale: 6,
+    extruded: true,
+    radius: 600,
+    opacity: 0.78,
+    coverage: 0.9,
+    pickable: false,
+    colorRange,
+    parameters: { depthTest: true }
+  });
+}
+
+// Spider / desire-line: pick the dominant inbound stop ("hub"), draw straight
+// lines O → hub → D for every flow. Width by volume. Quietly devastating for
+// rail because every line collects toward Central.
+function buildSpiderLayer(arcs, monthIdx, palette) {
+  const acc = new Map();
+  let hubKey = null, hubQ = 0;
+  for (const a of arcs) {
+    const q = a.qs[monthIdx] || 0;
+    if (q <= 0) continue;
+    const k = a.target.join(',');
+    const cur = (acc.get(k) || 0) + q;
+    acc.set(k, cur);
+    if (cur > hubQ) { hubQ = cur; hubKey = k; }
+  }
+  if (!hubKey) return null;
+  const hub = hubKey.split(',').map(Number);
+  const lines = [];
+  let qMax = 0;
+  for (const a of arcs) {
+    const q = a.qs[monthIdx] || 0;
+    if (q <= 0) continue;
+    if (q > qMax) qMax = q;
+    lines.push({ path: [a.source, hub, a.target], mode: a.mode, q });
+  }
+  const ws = qMax > 0 ? 6 / Math.sqrt(qMax) : 0;
+  return new deck.PathLayer({
+    id: 'spider',
+    data: lines,
+    getPath: d => d.path,
+    getColor: d => [...palette[d.mode], 90],
+    getWidth: d => Math.max(0.2, Math.sqrt(d.q) * ws),
+    widthMinPixels: 0.5,
+    widthMaxPixels: 3,
+    parameters: { depthTest: false }
+  });
+}
+
+function buildLayers() {
+  if (!state.data) return [];
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const palette = isDark ? MODE_COLOURS_DARK : MODE_COLOURS_LIGHT;
+  const arcs = state.cachedArcs || buildStableArcs();
+  const monthIdx = state.monthIdx ?? 0;
+  const widthScale = state.cachedMax > 0 ? 8 / Math.sqrt(state.cachedMax) : 0;
+
+  const layers = [];
+  const networkLayer = buildNetworkLayer();
+  if (networkLayer) layers.push(networkLayer);
+
+  // While pulse is active, suppress arcs / trip-dots so the moving particles
+  // and their anchors aren't drowned out.
+  const flowsHidden = state.heartbeat.pulse;
+  if (!flowsHidden && state.view === 'dots') {
+    const dotLayer = buildDotLayer(arcs, palette, monthIdx, widthScale);
+    if (dotLayer) layers.push(dotLayer);
+  } else if (!flowsHidden && state.view === 'arcs') {
+    const arcLayer = new deck.ArcLayer({
+      id: 'arcs',
+      data: arcs,
+      pickable: true,
+      getSourcePosition: d => d.source,
+      getTargetPosition: d => d.target,
+      getSourceColor: d => [...palette[d.mode], 200],
+      getTargetColor: d => [...palette[d.mode], 80],
+      getWidth: d => {
+        const q = d.qs[monthIdx] || 0;
+        return q > 0 ? Math.max(0.2, Math.sqrt(q) * widthScale) : 0;
+      },
+      getHeight: 0.4,
+      greatCircle: false,
+      transitions: {
+        getWidth: { type: 'interpolation', duration: 900 }
+      },
+      updateTriggers: {
+        getWidth: monthIdx,
+        getSourceColor: isDark,
+        getTargetColor: isDark
+      },
+      onHover: info => {
+        if (info.object && info.x !== undefined) showTooltip(info);
+        else hideTooltip();
+      }
+    });
+    layers.push(arcLayer);
+  } else if (!flowsHidden && state.view === 'hex') {
+    const hex = buildHexLayer(arcs, monthIdx);
+    if (hex) layers.push(hex);
+  } else if (!flowsHidden && state.view === 'spider') {
+    const spider = buildSpiderLayer(arcs, monthIdx, palette);
+    if (spider) layers.push(spider);
+  }
+  // state.view === 'none': no flow layer
+
+  // Daily heartbeat overlay (drawn on top so dots are always visible)
+  for (const l of buildHeartbeatLayers()) layers.push(l);
+
+  return layers;
+}
+
+// Aggregate per-stop origin and destination counts for the given bucket × current
+// modes × current month. Defaults to the active heartbeat selection but accepts
+// overrides so the pulse can render static anchor dots for its current bucket.
+function computeHeartbeat(bucketOverride, originOverride, destOverride) {
+  const hb = state.heartbeat;
+  const bucket = bucketOverride ?? hb.bucket;
+  const wantOrigin = originOverride ?? hb.origin;
+  const wantDest = destOverride ?? hb.dest;
+  if (!bucket || (!wantOrigin && !wantDest)) return null;
+  const stable = state.data.stable.flows;
+  const monthIdx = state.monthIdx ?? 0;
+  const origins = new Map();
+  const destinations = new Map();
+  let total = 0;
+  for (const mode of activeModes()) {
+    const rows = stable[`${mode}|${bucket}`] || [];
+    for (const [o, d, qs] of rows) {
+      const q = qs[monthIdx] || 0;
+      if (q <= 0) continue;
+      total += q;
+      if (wantOrigin) origins.set(o, (origins.get(o) || 0) + q);
+      if (wantDest) destinations.set(d, (destinations.get(d) || 0) + q);
+    }
+  }
+  return { origins, destinations, total };
+}
+
+const PULSE_BUCKETS = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve'];
+const PULSE_BUCKETS_PEAK = ['wd_early', 'wd_pmpeak'];
+const PULSE_BUCKET_LABELS = { wd_early: 'AM', wd_mid: 'Midday', wd_pmpeak: 'PM peak', wd_eve: 'Evening' };
+
+function activePulseBuckets() {
+  return state.heartbeat.peakOnly ? PULSE_BUCKETS_PEAK : PULSE_BUCKETS;
+}
+const PULSE_BUCKET_MS = 2000;
+// No more dead air between buckets — particles cross-fade. The tail of bucket
+// N is rendered during the first PULSE_FADE_FRACTION of bucket N+1 so the
+// motion never goes blank.
+const PULSE_BUCKET_PAUSE_MS = 0;
+const PULSE_BUCKET_TOTAL_MS = PULSE_BUCKET_MS + PULSE_BUCKET_PAUSE_MS;
+const PULSE_FADE_FRACTION = 0.3;
+const PULSE_RADIUS_MAX = 50;
+const PULSE_MOVING_RADIUS = 1.8;  // px — keep in sync with the moving-dot getRadius
+const PULSE_FLIGHT_DURATION = 0.7; // fraction of the bucket each particle is in flight
+// Fixed dots-per-trip ratio — each dot represents this many actual trips,
+// regardless of mode or bucket. Sparse for low-volume filters (e.g. Ferry),
+// dense for high-volume ones (e.g. all modes at AM peak). Safer cap also
+// applies so the densest combinations don't tip past ~15k particles.
+const PULSE_TRIPS_PER_DOT = 1000;
+const PULSE_MAX_PARTICLES = 15000;
+
+function pulseCacheKey() {
+  return `${state.mode}|${state.monthIdx}`;
+}
+
+// Stochastic rounding so per-flow dot counts are statistically proportional
+// to q across the full range, including small flows where p < 0.5.
+function stochasticN(q, scale) {
+  const p = q * scale;
+  const base = Math.floor(p);
+  return base + (Math.random() < (p - base) ? 1 : 0);
+}
+
+// Build everything the active variants need for a single bucket: per-flow
+// items, per-stop origin/destination aggregates, and the stream particle
+// pool used by mass+stream.
+// Find a polyline slice for an OD pair on a multi-route network (rail / bus).
+// Picks the SHORTEST shared-route slice when several routes serve the pair —
+// "most direct" wins, which matters for bus where 5+ routes often share an
+// OD pair via different streets. Returns null if the pair doesn't share any
+// route (legitimate cross-line trips fall back to straight-line rendering).
+function findRouteSlice(paths, oId, dId) {
+  if (!paths) return null;
+  const oRoutes = paths.stops[oId];
+  const dRoutes = paths.stops[dId];
+  if (!oRoutes || !dRoutes) return null;
+  const dByRoute = new Map(dRoutes);
+  let best = null;
+  let bestLen = Infinity;
+  for (const [routeName, oIdx] of oRoutes) {
+    const dIdx = dByRoute.get(routeName);
+    if (dIdx === undefined || dIdx === oIdx) continue;
+    const polyline = paths.routes[routeName].polyline;
+    const sliceLen = Math.abs(dIdx - oIdx) + 1;
+    if (sliceLen >= bestLen) continue;
+    const slice = oIdx < dIdx
+      ? polyline.slice(oIdx, dIdx + 1)
+      : polyline.slice(dIdx, oIdx + 1).reverse();
+    if (slice.length >= 2) {
+      best = slice;
+      bestLen = sliceLen;
+    }
+  }
+  return best;
+}
+
+function computePulseBucket(bucket) {
+  const stable = state.data.stable.flows;
+  const stops = state.data.stops;
+  const ferryPaths = state.data.ferryPaths;
+  const railPaths = state.data.railPaths;
+  const busPaths = state.data.busPaths;
+  const monthIdx = state.monthIdx ?? 0;
+
+  const items = [];
+  const origins = new Map();
+  const destinations = new Map();
+  const originDirSum = new Map();
+  const destDirSum = new Map();
+  let totalQ = 0;
+
+  for (const mode of activeModes()) {
+    const rows = stable[`${mode}|${bucket}`] || [];
+    for (const [o, d, qs] of rows) {
+      if (o === d) continue;
+      const q = qs[monthIdx] || 0;
+      if (q <= 0) continue;
+      const so = stops[o], sd = stops[d];
+      if (!so || !sd) continue;
+      const item = { src: [so[3], so[2]], tgt: [sd[3], sd[2]], q, mode, __o: o, __d: d, __bucket: bucket };
+      // Bookend a polyline slice with the actual stop coords (so particles
+      // arrive at the terminal/platform, not at the nearest polyline node)
+      // and precompute cumulative segment lengths for O(log n) walking.
+      const attachPath = (slice) => {
+        if (!slice || slice.length < 2) return;
+        const fullPath = [item.src, ...slice, item.tgt];
+        const cum = [0];
+        for (let i = 1; i < fullPath.length; i++) {
+          const dx = fullPath[i][0] - fullPath[i - 1][0];
+          const dy = fullPath[i][1] - fullPath[i - 1][1];
+          cum.push(cum[i - 1] + Math.sqrt(dx * dx + dy * dy));
+        }
+        item.path = fullPath;
+        item.cum = cum;
+      };
+      if (mode === 'Ferry' && ferryPaths) {
+        // Bay and island stops are absent from stop_node — straight-line
+        // fallback is correct for open-water routes.
+        const oIdx = ferryPaths.stop_node[o];
+        const dIdx = ferryPaths.stop_node[d];
+        if (oIdx !== undefined && dIdx !== undefined && oIdx !== dIdx) {
+          attachPath(oIdx < dIdx
+            ? ferryPaths.polyline.slice(oIdx, dIdx + 1)
+            : ferryPaths.polyline.slice(dIdx, oIdx + 1).reverse());
+        }
+      } else if (mode === 'Rail' && railPaths) {
+        // Cross-line trips that don't share a route fall back to straight.
+        attachPath(findRouteSlice(railPaths, o, d));
+      } else if (mode === 'Bus' && busPaths) {
+        // Picks the shortest of the shared bus routes — see findRouteSlice.
+        attachPath(findRouteSlice(busPaths, o, d));
+      }
+      // Suppress flows with no route polyline for modes that have path data.
+      // Drops the long tail of cross-line/transfer pairs that would otherwise
+      // render as visually distracting straight cuts across the network. Both
+      // particles and the anchor-volume contribution are skipped together so
+      // the volume-conserving sizing stays internally consistent.
+      const hasPathData =
+        (mode === 'Ferry' && ferryPaths) ||
+        (mode === 'Rail' && railPaths) ||
+        (mode === 'Bus' && busPaths);
+      if (hasPathData && !item.path) continue;
+      // Doppler tag: positive = toward CBD, negative = away. tanh keeps
+      // small differences expressive without saturating quickly. Multiplier
+      // 25 tunes the half-saturation point to roughly an inner-suburb radius.
+      item.__dir = Math.tanh((distToCbd(item.src) - distToCbd(item.tgt)) * 25);
+      totalQ += q;
+      items.push(item);
+      origins.set(o, (origins.get(o) || 0) + q);
+      destinations.set(d, (destinations.get(d) || 0) + q);
+      originDirSum.set(o, (originDirSum.get(o) || 0) + q * item.__dir);
+      destDirSum.set(d, (destDirSum.get(d) || 0) + q * item.__dir);
+    }
+  }
+
+  const ptsFromMap = (countMap, dirMap) => {
+    const arr = [];
+    for (const [sid, q] of countMap) {
+      const s = stops[sid];
+      if (!s) continue;
+      const dirMix = q > 0 ? (dirMap.get(sid) || 0) / q : 0;
+      arr.push({ position: [s[3], s[2]], q, sid, name: s[0], dirMix });
+    }
+    return arr;
+  };
+  const originPoints = ptsFromMap(origins, originDirSum);
+  const destPoints = ptsFromMap(destinations, destDirSum);
+
+  // Fixed dots-per-trip ratio — same scale for every bucket/mode. Cap the
+  // total at PULSE_MAX_PARTICLES so the densest combinations stay smooth.
+  const baseScale = 1 / PULSE_TRIPS_PER_DOT;
+  const expectedDots = totalQ * baseScale;
+  const cap = expectedDots > PULSE_MAX_PARTICLES ? PULSE_MAX_PARTICLES / expectedDots : 1;
+  const scale = baseScale * cap;
+  const streamParticles = [];
+  for (const it of items) {
+    const n = stochasticN(it.q, scale);
+    for (let k = 0; k < n; k++) {
+      streamParticles.push({ src: it.src, tgt: it.tgt, path: it.path, cum: it.cum, mode: it.mode, phase: Math.random(), __o: it.__o, __d: it.__d, __bucket: it.__bucket, __dir: it.__dir, q: it.q });
+    }
+  }
+  const tripsPerDot = scale > 0 ? Math.round(1 / scale) : 0;
+
+  return { items, totalQ, originPoints, destPoints, streamParticles, tripsPerDot };
+}
+
+function ensurePulseCache() {
+  const key = pulseCacheKey();
+  if (state.pulseCacheKey === key && state.pulseCache) return state.pulseCache;
+  const cache = {};
+  for (const b of PULSE_BUCKETS) cache[b] = computePulseBucket(b);
+  state.pulseCacheKey = key;
+  state.pulseCache = cache;
+  return cache;
+}
+
+function pulseColors() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  // Doppler red anchor (toward observer / inbound to CBD).
+  const origin = isDark ? [228, 62, 78] : [205, 40, 55];
+  const dest   = isDark ? [188, 38, 52] : [165, 28, 42];
+  return {
+    origin,
+    dest,
+    bridge: isDark ? [180, 80, 90] : [150, 60, 72]
+  };
+}
+
+// Doppler convention: BART — Blue Away, Red Toward. We treat the CBD as the
+// "transducer", so flows whose destination is closer to CBD than their origin
+// are toward (red); the reverse is away (blue). Lateral flows (no clear
+// component along the CBD axis) sit at neutral grey.
+const CBD_REF = [153.025, -27.469];
+function distToCbd(p) {
+  const dx = p[0] - CBD_REF[0], dy = p[1] - CBD_REF[1];
+  return Math.sqrt(dx * dx + dy * dy);
+}
+// Map signed direction in [-1, 1] (−1 = away, +1 = toward) to an RGB triple.
+function dopplerColour(dir) {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const red    = isDark ? [228, 62, 78]   : [205, 40, 55];
+  const blue   = isDark ? [70, 140, 220]  : [40, 100, 200];
+  const grey   = isDark ? [120, 95, 130]  : [100, 80, 110];
+  const target = dir >= 0 ? red : blue;
+  const k = Math.min(1, Math.abs(dir));
+  return [
+    Math.round(grey[0] + (target[0] - grey[0]) * k),
+    Math.round(grey[1] + (target[1] - grey[1]) * k),
+    Math.round(grey[2] + (target[2] - grey[2]) * k)
+  ];
+}
+// Brightness modulation for anomaly mode. t in [-1, 1]: positive brightens
+// toward white-ish, negative darkens toward black. Keeps hue intact so red
+// stays red and blue stays blue.
+function modulateBrightness(rgb, t) {
+  if (t >= 0) {
+    const k = 0.55 * t;
+    return [
+      Math.round(rgb[0] + (255 - rgb[0]) * k),
+      Math.round(rgb[1] + (255 - rgb[1]) * k),
+      Math.round(rgb[2] + (255 - rgb[2]) * k)
+    ];
+  }
+  const k = 1 + 0.7 * t;
+  return [Math.round(rgb[0] * k), Math.round(rgb[1] * k), Math.round(rgb[2] * k)];
+}
+function dopplerForItem(item) {
+  return dopplerColour(item.__dir || 0);
+}
+function dopplerForAnchor(point) {
+  return dopplerColour(point.dirMix || 0);
+}
+
+// Anomaly cache: per-pair median across all months for a given mode|bucket.
+// Built lazily and reused until the underlying data swaps.
+function ensureAnomalyCache() {
+  if (state.anomalyCache) return state.anomalyCache;
+  const flows = state.data && state.data.stable && state.data.stable.flows;
+  if (!flows) return null;
+  const cache = {};
+  for (const key in flows) {
+    const map = new Map();
+    for (const [o, d, qs] of flows[key]) {
+      const positives = [];
+      for (const q of qs) if (q > 0) positives.push(q);
+      if (positives.length === 0) continue;
+      positives.sort((a, b) => a - b);
+      const median = positives[positives.length >> 1];
+      map.set(`${o}|${d}`, median);
+    }
+    cache[key] = map;
+  }
+  state.anomalyCache = cache;
+  return cache;
+}
+
+// Look up an item's "this-month vs typical" ratio. Returns 1 (neutral) when
+// there's no baseline for the pair (rare, e.g. brand-new flows). Items carry
+// `q` for current-month volume and `__bucket` so we can resolve the cache.
+function ratioForItem(item) {
+  if (state.anomalyMode !== 'flow') return 1;
+  const cache = ensureAnomalyCache();
+  if (!cache || !item.__bucket) return 1;
+  const key = `${item.mode}|${item.__bucket}`;
+  const m = cache[key];
+  if (!m) return 1;
+  const med = m.get(`${item.__o}|${item.__d}`);
+  if (!med || med <= 0) return 1;
+  return item.q / med;
+}
+
+// Resolve effects-aware particle params. Returns:
+//   colour:  [r,g,b]  base particle/anchor colour (anomaly-aware)
+//   alpha:   0..255   final alpha incorporating glow flag
+//   particleRadius: pixels — base, before bokeh
+//   bokehWobble: pixels — extra random radius if bokeh enabled
+function fxParticleParams(baseColour, baseAlpha) {
+  const fx = state.fx;
+  let alpha = baseAlpha;
+  if (fx.glow) alpha = Math.min(255, baseAlpha + 40);
+  return { alpha };
+}
+
+// Bokeh radius wobble — deterministic per-particle so flicker doesn't mask
+// the underlying motion. Uses the particle's phase as the seed.
+function bokehRadiusFactor(phase) {
+  if (!state.fx.bokeh) return 1;
+  // 0.5..1.6 with most particles near 1
+  const noise = Math.sin(phase * 7919) * 0.5 + 0.5;
+  return 0.5 + noise * 1.1;
+}
+
+function pulseRadiusFn(c) {
+  // Volume-conserving: anchor-dot area equals the summed area of its moving
+  // particles. A destination receiving N moving dots displays as a circle the
+  // same total area as those N dots — so size is directly comparable to the
+  // travel-dot stream rather than being on its own arbitrary scale.
+  // tripsPerDot honours the per-bucket cap so anchor sizes track what's
+  // actually rendered.
+  const tpd = c.tripsPerDot || PULSE_TRIPS_PER_DOT;
+  return q => Math.min(PULSE_RADIUS_MAX, PULSE_MOVING_RADIUS * Math.sqrt(q / tpd));
+}
+
+// Position of a point at fraction u of the journey from src to tgt. If the
+// item carries a polyline path with precomputed cumulative segment lengths,
+// walk along it; otherwise straight-line lerp. Binary search keeps per-frame
+// cost trivial even with thousands of particles.
+function posAlong(src, tgt, u, path, cum) {
+  if (path && cum && cum.length > 1) {
+    const total = cum[cum.length - 1];
+    if (total <= 0) return [src[0], src[1]];
+    const target = u * total;
+    let lo = 0, hi = cum.length - 1;
+    while (lo < hi - 1) {
+      const m = (lo + hi) >> 1;
+      if (cum[m] <= target) lo = m;
+      else hi = m;
+    }
+    const segLen = cum[lo + 1] - cum[lo];
+    const f = segLen > 0 ? (target - cum[lo]) / segLen : 0;
+    const a = path[lo], b = path[lo + 1];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  }
+  return [src[0] + (tgt[0] - src[0]) * u, src[1] + (tgt[1] - src[1]) * u];
+}
+
+// ----- Pulse style builders -----
+// Each takes the per-bucket cache c and the current progress (0..1) and
+// returns deck.gl layers. Variants differ in how anchors animate and how
+// (or whether) particles are emitted.
+
+// Glow uses additive blending — particles overlap into hot spots. deck.gl
+// accepts any WebGL blend constants in the layer parameters block.
+const ADDITIVE_BLEND = {
+  blend: true,
+  blendFunc: [770, 1],          // SRC_ALPHA, ONE
+  blendEquation: 32774,          // FUNC_ADD
+  depthTest: false
+};
+const STANDARD_BLEND = { depthTest: false };
+
+function fxParticleFillColour(item, baseRgb) {
+  // Hue from Doppler direction (red toward CBD, blue away). Anomaly mode
+  // keeps the same hue and modulates brightness — bright above-typical,
+  // dark below-typical — so two channels read at once.
+  const hue = dopplerForItem(item);
+  if (state.anomalyMode === 'flow') {
+    const ratio = ratioForItem(item);
+    const t = Math.max(-1, Math.min(1, Math.log2(Math.max(0.0001, ratio)) / 2.5));
+    return modulateBrightness(hue, t);
+  }
+  return hue;
+}
+
+function buildPulseMigrateLayers(c, progress, opts) {
+  opts = opts || {};
+  const idSuffix = opts.idSuffix || '';
+  const skipAnchors = opts.skipAnchors || false;
+  // Cross-fade tail layers fade out near the end, so multiply alpha by tailFade
+  const tailFade = opts.tailFade != null ? opts.tailFade : 1;
+  const colors = pulseColors();
+  const r = pulseRadiusFn(c);
+  const layers = [];
+  const fx = state.fx;
+  const blend = fx.glow ? ADDITIVE_BLEND : STANDARD_BLEND;
+  const baseAlpha = Math.round((fx.glow ? 180 : 220) * tailFade);
+
+  // Streak: render trailing copies of each migrating dot at earlier progress
+  // values so the dot leaves a fading wake. 4 trail steps × decay factor.
+  const trailSteps = fx.streak ? 4 : 0;
+  for (let s = trailSteps; s >= 1; s--) {
+    const tProgress = Math.max(0, progress - s * 0.05);
+    if (tProgress <= 0) continue;
+    const decay = 1 - s / (trailSteps + 1);
+    layers.push(new deck.ScatterplotLayer({
+      id: `pulse-migrate-trail-${s}${idSuffix}`,
+      data: c.items,
+      getPosition: d => posAlong(d.src, d.tgt, tProgress, d.path, d.cum),
+      getRadius: d => r(d.q) * (1 - tProgress) * decay * 0.8,
+      getFillColor: d => [...fxParticleFillColour(d, colors.origin), Math.round(baseAlpha * decay * 0.6)],
+      radiusUnits: 'pixels', radiusMinPixels: 0, radiusMaxPixels: PULSE_RADIUS_MAX,
+      stroked: false, parameters: blend,
+      updateTriggers: { getPosition: progress, getRadius: progress, getFillColor: state.anomalyMode }
+    }));
+  }
+
+  // One migrating dot per flow: position O→D, radius shrinks to zero.
+  layers.push(new deck.ScatterplotLayer({
+    id: `pulse-migrate-dots${idSuffix}`,
+    data: c.items,
+    getPosition: d => posAlong(d.src, d.tgt, progress, d.path, d.cum),
+    getRadius: d => r(d.q) * (1 - progress) * (fx.bokeh ? bokehRadiusFactor(d.q + d.src[0]) : 1),
+    getFillColor: d => [...fxParticleFillColour(d, colors.origin), baseAlpha],
+    radiusUnits: 'pixels', radiusMinPixels: 0, radiusMaxPixels: PULSE_RADIUS_MAX,
+    stroked: false, parameters: blend,
+    updateTriggers: { getPosition: progress, getRadius: progress, getFillColor: state.anomalyMode }
+  }));
+  // Destinations grow from zero to full. Translucent red so the warm
+  // particles flowing in are still visible through the destination dot —
+  // you read the absorption rather than seeing it covered up.
+  const destAlpha = Math.round(baseAlpha * 0.55);
+  if (state.showAnchors && !skipAnchors) {
+    layers.push(new deck.ScatterplotLayer({
+      id: `pulse-migrate-dests${idSuffix}`,
+      data: c.destPoints,
+      getPosition: d => d.position,
+      getRadius: d => r(d.q) * progress,
+      getFillColor: [...colors.dest, destAlpha],
+      radiusUnits: 'pixels', radiusMinPixels: 0, radiusMaxPixels: PULSE_RADIUS_MAX,
+      stroked: false, parameters: blend,
+      updateTriggers: { getRadius: progress }
+    }));
+  }
+  return layers;
+}
+
+function buildPulseMassStreamLayers(c, progress, opts) {
+  opts = opts || {};
+  const idSuffix = opts.idSuffix || '';
+  const skipAnchors = opts.skipAnchors || false;
+  const tailFade = opts.tailFade != null ? opts.tailFade : 1;
+  const colors = pulseColors();
+  const r = pulseRadiusFn(c);
+  const layers = [];
+  const fx = state.fx;
+  const blend = fx.glow ? ADDITIVE_BLEND : STANDARD_BLEND;
+  const baseAlpha = Math.round((fx.glow ? 180 : 220) * tailFade);
+
+  // Mass transfer: origins shrink, destinations grow.
+  if (state.showAnchors && !skipAnchors) {
+    layers.push(new deck.ScatterplotLayer({
+      id: `pulse-massStream-origins${idSuffix}`,
+      data: c.originPoints,
+      getPosition: d => d.position,
+      getRadius: d => r(d.q) * (1 - progress * 0.92),
+      getFillColor: [...colors.origin, baseAlpha],
+      radiusUnits: 'pixels', radiusMinPixels: 0.5, radiusMaxPixels: PULSE_RADIUS_MAX,
+      stroked: false, parameters: blend,
+      updateTriggers: { getRadius: progress }
+    }));
+    // Translucent red — warm particles arriving show through.
+    const destAlpha = Math.round(baseAlpha * 0.55);
+    layers.push(new deck.ScatterplotLayer({
+      id: `pulse-massStream-dests${idSuffix}`,
+      data: c.destPoints,
+      getPosition: d => d.position,
+      getRadius: d => r(d.q) * (0.2 + 0.8 * progress),
+      getFillColor: [...colors.dest, destAlpha],
+      radiusUnits: 'pixels', radiusMinPixels: 0.5, radiusMaxPixels: PULSE_RADIUS_MAX,
+      stroked: false, parameters: blend,
+      updateTriggers: { getRadius: progress }
+    }));
+  }
+  // Particles flow continuously — pause is gone, cross-fade replaces it.
+  const D = PULSE_FLIGHT_DURATION;
+  const PHASE_RANGE = 1 - D;
+
+  // Streak: render trailing positions for each particle. Each trail step is
+  // a fraction of the flight duration earlier, with decaying alpha. 3 steps
+  // is enough to read as a trail without halving the framerate.
+  const trailSteps = fx.streak ? 3 : 0;
+  for (let s = trailSteps; s >= 1; s--) {
+    const offset = s * 0.04;
+    layers.push(new deck.ScatterplotLayer({
+      id: `pulse-massStream-trail-${s}${idSuffix}`,
+      data: c.streamParticles,
+      getPosition: p => {
+        const launch = p.phase * PHASE_RANGE;
+        const elapsed = progress - launch - offset;
+        if (elapsed < 0 || elapsed >= D) return p.src;
+        return posAlong(p.src, p.tgt, elapsed / D, p.path, p.cum);
+      },
+      getRadius: p => {
+        const launch = p.phase * PHASE_RANGE;
+        const elapsed = progress - launch - offset;
+        if (elapsed < 0 || elapsed >= D) return 0;
+        return PULSE_MOVING_RADIUS * (1 - s / (trailSteps + 1)) * 0.85;
+      },
+      // radiusMinPixels: 0 so particles that aren't in flight (elapsed < 0 or
+      // >= D) properly disappear instead of being floored to a visible dot
+      // at their origin.
+      radiusUnits: 'pixels', radiusMinPixels: 0, radiusMaxPixels: 3,
+      getFillColor: p => [...fxParticleFillColour(p, colors.origin), Math.round(baseAlpha * (1 - s / (trailSteps + 1)) * 0.55)],
+      stroked: false, parameters: blend,
+      updateTriggers: { getPosition: progress, getRadius: progress, getFillColor: state.anomalyMode }
+    }));
+  }
+
+  layers.push(new deck.ScatterplotLayer({
+    id: `pulse-massStream-particles${idSuffix}`,
+    data: c.streamParticles,
+    getPosition: p => {
+      const launch = p.phase * PHASE_RANGE;
+      const elapsed = progress - launch;
+      if (elapsed < 0 || elapsed >= D) return p.src;
+      return posAlong(p.src, p.tgt, elapsed / D, p.path, p.cum);
+    },
+    getRadius: p => {
+      const launch = p.phase * PHASE_RANGE;
+      const elapsed = progress - launch;
+      if (elapsed < 0 || elapsed >= D) return 0;
+      const wobble = fx.bokeh ? bokehRadiusFactor(p.phase) : 1;
+      return PULSE_MOVING_RADIUS * wobble;
+    },
+    // radiusMinPixels: 0 so not-launched / already-arrived particles
+    // (which return position=src + radius=0) genuinely disappear instead
+    // of being floored into 1.5px dots clustered at every origin.
+    radiusUnits: 'pixels', radiusMinPixels: 0, radiusMaxPixels: fx.bokeh ? 5 : 3,
+    getFillColor: p => [...fxParticleFillColour(p, colors.origin), baseAlpha],
+    stroked: false, parameters: blend,
+    updateTriggers: { getPosition: progress, getRadius: progress, getFillColor: state.anomalyMode }
+  }));
+  return layers;
+}
+
+const PULSE_STYLE_BUILDERS = {
+  migrate:    buildPulseMigrateLayers,
+  massStream: buildPulseMassStreamLayers,
+};
+
+// Presence glow — synthetic occupancy story rather than raw net flow. The
+// real data isn't symmetric (CBD destinations get positive net even at PM
+// peak because of shopping / evening activity), so a literal cumulative
+// can't drain. Instead, each stop's AM net inbound becomes its "weight",
+// and the intensity follows a designed rise/hold/fall curve across the
+// bucket cycle:
+//   AM peak  : intensity rises 0 → 1   (people arriving at destinations)
+//   Midday   : intensity holds at 1     (people at work)
+//   PM peak  : intensity falls 1 → 0   (people leaving)
+//   Evening  : intensity stays at 0     (city quiet)
+// Suburbs (negative AM net) get the inverted curve — full of people
+// overnight, empty during the workday, refill in PM. Subtler so they
+// don't dominate.
+// Brisbane CBD bounding box — matches the bbox used by build_payload.py for
+// the inbound/outbound CBD card. Presence glow stays inside this box so the
+// visual story is "CBD lights up", not "every employment hub in SEQ glows".
+const CBD_BBOX = {
+  latMin: -27.485, latMax: -27.45,
+  lonMin: 153.005, lonMax: 153.04
+};
+function inCbd(stop) {
+  // stop format: [name, mode, lat, lon]
+  return stop && stop[2] >= CBD_BBOX.latMin && stop[2] <= CBD_BBOX.latMax
+              && stop[3] >= CBD_BBOX.lonMin && stop[3] <= CBD_BBOX.lonMax;
+}
+
+function ensurePresenceCache() {
+  const ckey = `${state.mode}|${state.monthIdx}`;
+  if (state.presenceCacheKey === ckey && state.presenceCache) return state.presenceCache;
+  const flows = state.data.stable.flows;
+  const stops = state.data.stops;
+  const monthIdx = state.monthIdx ?? 0;
+  // Only count net inbound for CBD destinations — that drives both which
+  // stops glow AND the maxAbs normaliser.
+  const amNet = new Map();
+  for (const m of activeModes()) {
+    const rows = flows[`${m}|wd_early`] || [];
+    for (const [o, d, qs] of rows) {
+      const q = qs[monthIdx] || 0;
+      if (q <= 0) continue;
+      if (!inCbd(stops[d])) continue;     // CBD-only destinations
+      amNet.set(d, (amNet.get(d) || 0) + q);
+    }
+  }
+  let maxAbs = 1;
+  for (const v of amNet.values()) if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
+
+  // Pre-extract a window of network polyline points around each presence stop
+  // so the glow renders along the actual rail/bus/ferry geometry instead of as
+  // freestanding circles. Window size is fixed; intensity drives width and
+  // alpha at render time. Bus stops map to many shape variants — overlapping
+  // segments at busy interchanges naturally brighten the core under additive
+  // blending.
+  const sqrtMax = Math.sqrt(maxAbs);
+  const WINDOW = 8;
+  const segments = [];
+  const pushSegment = (polyline, idx, weight, isDest) => {
+    if (!polyline || polyline.length < 2) return;
+    const lo = Math.max(0, idx - WINDOW);
+    const hi = Math.min(polyline.length, idx + WINDOW + 1);
+    const slice = polyline.slice(lo, hi);
+    if (slice.length < 2) return;
+    segments.push({ path: slice, weight, isDest });
+  };
+  for (const [sid, val] of amNet) {
+    if (Math.abs(val) < maxAbs * 0.015) continue;
+    const weight = Math.sqrt(Math.abs(val)) / sqrtMax;
+    const isDest = val > 0;
+    // Bus: stops map to multiple shape variants
+    if (state.data.busPaths) {
+      const arr = state.data.busPaths.stops[sid];
+      if (arr) for (const [rn, idx] of arr) {
+        const r = state.data.busPaths.routes[rn];
+        if (r) pushSegment(r.polyline, idx, weight, isDest);
+      }
+    }
+    // Rail: same shape
+    if (state.data.railPaths) {
+      const arr = state.data.railPaths.stops[sid];
+      if (arr) for (const [rn, idx] of arr) {
+        const r = state.data.railPaths.routes[rn];
+        if (r) pushSegment(r.polyline, idx, weight, isDest);
+      }
+    }
+    // Ferry: single polyline, per-stop index
+    if (state.data.ferryPaths) {
+      const idx = state.data.ferryPaths.stop_node[sid];
+      if (idx !== undefined) pushSegment(state.data.ferryPaths.polyline, idx, weight, isDest);
+    }
+  }
+  state.presenceCache = { amNet, maxAbs, segments };
+  state.presenceCacheKey = ckey;
+  return state.presenceCache;
+}
+
+// Day/night tint curve. Mirrors the sun: AM ramps from full night to full
+// day, midday holds bright, PM ramps from bright back to night, evening
+// holds dark. Smoothstep keeps sunrise/sunset feeling natural rather than
+// linear. MAX_NIGHT_OPACITY caps how dark the overlay gets at full night —
+// pushing past ~0.8 starts crushing particle visibility.
+const MAX_NIGHT_OPACITY = 0.78;
+function smoothstep01(t) { return t * t * (3 - 2 * t); }
+function dayNightIntensity(bucket, progress) {
+  switch (bucket) {
+    case 'wd_early':  return 1 - smoothstep01(progress); // dark to light
+    case 'wd_mid':    return 0;                          // full day
+    case 'wd_pmpeak': return smoothstep01(progress);     // light to dark
+    case 'wd_eve':    return 1;                          // full night
+    case 'wkend':     return 0;
+    default:          return 0;
+  }
+}
+function updateDayNightTint(bucket, progress) {
+  const el = document.getElementById('dayNightTint');
+  if (!el) return;
+  if (state.basemap !== 'auto' || !state.dayNightCycle) { el.style.opacity = '0'; return; }
+  el.style.opacity = String(dayNightIntensity(bucket, progress) * MAX_NIGHT_OPACITY);
+}
+
+// Designed intensity curve. Returns 0..1 for the "people at destinations"
+// signal at the current pulse moment. Uses a power curve so most of the
+// visible change happens in the second half of each bucket — a linear
+// ramp hits perceptual saturation too early and the tail-end build feels
+// invisible. Higher RAMP_POWER = slower start + faster finish.
+const PRESENCE_RAMP_POWER = 2.5;
+function presenceIntensity(bucket, progress) {
+  switch (bucket) {
+    case 'wd_early':  return Math.pow(progress, PRESENCE_RAMP_POWER);          // rising — slow start, visible finish
+    case 'wd_mid':    return 1;                                                  // hold
+    case 'wd_pmpeak': return 1 - Math.pow(progress, PRESENCE_RAMP_POWER);       // falling — slow start, visible finish (tail-end fade)
+    case 'wd_eve':    return 0;                                                  // quiet
+    case 'wkend':     return 0;
+    default:          return 0;
+  }
+}
+
+function buildPresenceLayer(bucketIdx, progress) {
+  if (!state.presenceMode) return null;
+  const cache = ensurePresenceCache();
+  if (!cache || !cache.segments || cache.segments.length === 0) return null;
+  const buckets = activePulseBuckets();
+  const intensity = presenceIntensity(buckets[bucketIdx], progress);
+  return new deck.PathLayer({
+    id: 'presence-paths',
+    data: cache.segments,
+    getPath: d => d.path,
+    getWidth: d => {
+      const inten = d.isDest ? intensity : (1 - intensity);
+      return 1 + d.weight * inten * 9;
+    },
+    getColor: d => {
+      const inten = d.isDest ? intensity : (1 - intensity);
+      if (d.isDest) {
+        const a = Math.round(15 + inten * 200);
+        return [255, 175, 90, a];                 // warm: destinations
+      }
+      const a = Math.round(6 + inten * 70);
+      return [110, 160, 210, a];                  // cool subtle: origins
+    },
+    widthUnits: 'pixels',
+    widthMinPixels: 0,
+    widthMaxPixels: 12,
+    capRounded: true,
+    jointRounded: true,
+    parameters: ADDITIVE_BLEND,
+    updateTriggers: {
+      getWidth: bucketIdx * 1000 + progress,
+      getColor: bucketIdx * 1000 + progress
+    }
+  });
+}
+
+function buildPulseLayers() {
+  const hb = state.heartbeat;
+  const cache = ensurePulseCache();
+  const buckets = activePulseBuckets();
+  const idx = Math.min(hb.pulseBucketIdx || 0, buckets.length - 1);
+  const bucket = buckets[idx];
+  const c = cache[bucket];
+  if (!c || c.totalQ === 0) return [];
+  const progress = hb.pulseProgress || 0;
+  const builder = PULSE_STYLE_BUILDERS[hb.pulseStyle] || buildPulseMassStreamLayers;
+  const layers = [];
+
+  // Presence glow drawn first so particles render on top of it.
+  const presence = buildPresenceLayer(idx, progress);
+  if (presence) layers.push(presence);
+  // Cross-fade tail: while we're in the first PULSE_FADE_FRACTION of the
+  // current bucket, also render the PREVIOUS bucket's tail. Its particles
+  // are still arriving at destinations while the current bucket's begin
+  // launching — eliminates the blank-frame between buckets when anchors
+  // are hidden. Drawn first so the new bucket's particles sit on top.
+  if (progress < PULSE_FADE_FRACTION && buckets.length > 1) {
+    const prevIdx = (idx - 1 + buckets.length) % buckets.length;
+    const prevC = cache[buckets[prevIdx]];
+    if (prevC && prevC.totalQ > 0) {
+      // Map current bucket's progress 0..PULSE_FADE_FRACTION into the
+      // previous bucket's tail (1 - PULSE_FADE_FRACTION)..1.
+      const prevProgress = (1 - PULSE_FADE_FRACTION) + progress;
+      // Linearly fade the tail's alpha from 1 → 0 across the overlap.
+      const tailFade = 1 - (progress / PULSE_FADE_FRACTION);
+      const tailLayers = builder(prevC, prevProgress, {
+        idSuffix: '-tail',
+        skipAnchors: true,    // anchors of the previous bucket would clash
+                              // with the current bucket's anchors at the same stops
+        tailFade
+      });
+      for (const l of tailLayers) layers.push(l);
+    }
+  }
+  for (const l of builder(c, progress)) layers.push(l);
+  return layers;
+}
+
+function pulseTick(now) {
+  const hb = state.heartbeat;
+  if (!hb.pulse) return;
+  const buckets = activePulseBuckets();
+  // Accumulate virtual time scaled by pulseSpeed so a slider change mid-cycle
+  // smoothly speeds up / slows down without jumping the bucket index.
+  const dt = hb.lastTickMs == null ? 0 : (now - hb.lastTickMs);
+  hb.lastTickMs = now;
+  hb.virtualElapsed = (hb.virtualElapsed || 0) + dt * (state.pulseSpeed || 1);
+  const elapsed = hb.virtualElapsed;
+  const cycleMs = buckets.length * PULSE_BUCKET_TOTAL_MS;
+  // Detect a freshly-completed cycle for the play-months walker.
+  const completedCycles = Math.floor(elapsed / cycleMs);
+  if (state.playingMonths
+      && hb.lastCompletedCycle !== undefined
+      && completedCycles > hb.lastCompletedCycle
+      && state.monthList) {
+    state.monthIdx = (state.monthIdx + 1) % state.monthList.length;
+    state.month = state.monthList[state.monthIdx];
+    const slider = document.getElementById('monthSlider');
+    if (slider) slider.value = state.monthIdx;
+    refreshMonth();
+  }
+  hb.lastCompletedCycle = completedCycles;
+  const t = elapsed % cycleMs;
+  const idx = Math.floor(t / PULSE_BUCKET_TOTAL_MS);
+  const within = t % PULSE_BUCKET_TOTAL_MS;
+  hb.pulseBucketIdx = idx;
+  // Travel phase: progress 0..1 over PULSE_BUCKET_MS. Pause phase: progress
+  // pinned at 1 for PULSE_BUCKET_PAUSE_MS so the settled "everyone has arrived"
+  // state is visible before the next bucket begins.
+  hb.pulseProgress = Math.min(1, within / PULSE_BUCKET_MS);
+  hb.pulseInPause = within >= PULSE_BUCKET_MS;
+  updateDayNightTint(buckets[idx], hb.pulseProgress);
+  refreshMedicalDial();
+  if (hb.lastPulseIdx !== idx) {
+    hb.lastPulseIdx = idx;
+    updatePulseButtonLabel();
+    refreshHbUI();
+  }
+  refreshLayersOnly();
+  updateWatchDial();
+  hb.pulseRaf = requestAnimationFrame(pulseTick);
+}
+
+function startPulse() {
+  const hb = state.heartbeat;
+  hb.pulse = true;
+  hb.pulseStartMs = performance.now();
+  hb.virtualElapsed = 0;
+  hb.lastTickMs = null;
+  hb.lastPulseIdx = -1;
+  hb.lastCompletedCycle = 0;
+  ensurePulseCache();
+  updatePulseButtonLabel();
+  refreshHbUI();
+  hb.pulseRaf = requestAnimationFrame(pulseTick);
+}
+
+function stopPulse() {
+  const hb = state.heartbeat;
+  hb.pulse = false;
+  if (hb.pulseRaf) cancelAnimationFrame(hb.pulseRaf);
+  hb.pulseRaf = null;
+  updateDayNightTint(null, 0);
+  // Pulse drives the month-walk; if it stops, the walk stops too.
+  if (state.playingMonths) {
+    state.playingMonths = false;
+    const playBtn = document.getElementById('playBtn');
+    if (playBtn) {
+      playBtn.classList.remove('playing');
+      playBtn.textContent = '▶ Play';
+    }
+  }
+  updatePulseButtonLabel();
+  refreshHbUI();
+  refreshLayersOnly();
+}
+
+function updatePulseButtonLabel() {
+  const btn = document.getElementById('pulseBtn');
+  if (!btn) return;
+  const hb = state.heartbeat;
+  if (hb.pulse) {
+    const buckets = activePulseBuckets();
+    const idx = Math.min(hb.pulseBucketIdx || 0, buckets.length - 1);
+    const cache = state.pulseCache;
+    const c = cache && cache[buckets[idx]];
+    const tpd = c ? c.tripsPerDot : 0;
+    const tpdLabel = tpd >= 1000 ? `${(tpd / 1000).toFixed(1)}k` : String(tpd);
+    btn.textContent = `⏸ ${PULSE_BUCKET_LABELS[buckets[idx]]} · 1 dot ≈ ${tpdLabel} trips`;
+    btn.classList.add('active');
+  } else {
+    btn.textContent = '▶ Pulse animation';
+    btn.classList.remove('active');
+  }
+}
+
+function buildHeartbeatLayers() {
+  const hb = state.heartbeat;
+  if (hb.pulse) {
+    return buildPulseLayers();
+  }
+  const data = computeHeartbeat();
+  if (!data) return [];
+  const stops = state.data.stops;
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const ORIGIN_RGB = isDark ? [255, 140, 80] : [216, 116, 62];
+  const DEST_RGB   = isDark ? [109, 188, 220] : [74, 143, 184];
+
+  const pointsFor = countMap => {
+    const pts = [];
+    for (const [sid, q] of countMap) {
+      const s = stops[sid];
+      if (!s) continue;
+      pts.push({ position: [s[3], s[2]], q, sid, name: s[0], mode: s[1] });
+    }
+    return pts;
+  };
+
+  const layers = [];
+  const RADIUS_MAX = 56;
+  const sqrtTotal = Math.sqrt(data.total || 1);
+  const radiusFor = q => RADIUS_MAX * Math.sqrt(q) / sqrtTotal;
+  const makeScatter = (id, pts, rgb) => new deck.ScatterplotLayer({
+    id,
+    data: pts,
+    getPosition: d => d.position,
+    getRadius: d => radiusFor(d.q),
+    getFillColor: d => [...rgb, 190],
+    getLineColor: [...rgb, 240],
+    lineWidthMinPixels: 0.5,
+    stroked: true,
+    radiusUnits: 'pixels',
+    radiusMinPixels: 1.5,
+    radiusMaxPixels: RADIUS_MAX,
+    pickable: true,
+    onHover: info => {
+      if (info.object && info.x !== undefined) showHbTooltip(info, id.endsWith('origins') ? 'origin' : 'destination');
+      else hideTooltip();
+    },
+    onClick: info => {
+      if (info.object && info.object.sid) selectStop(info.object.sid);
+    },
+    parameters: { depthTest: false }
+  });
+  if (hb.origin) layers.push(makeScatter('hb-origins', pointsFor(data.origins), ORIGIN_RGB));
+  if (hb.dest)   layers.push(makeScatter('hb-destinations', pointsFor(data.destinations), DEST_RGB));
+
+  return layers;
+}
+
+// Tidal plot — when a stop is selected, show net inflow vs outflow per
+// time-of-day bucket. Suburban stops show "outbound AM, inbound PM"; CBD
+// stops show the inverse. Rendered as paired bars per bucket: orange = out,
+// blue = in.
+function renderTidalPlot() {
+  const sel = state.selectedStop;
+  const panel = document.getElementById('tidalPanel');
+  const hint = document.getElementById('tidalHint');
+  if (!sel) {
+    panel.classList.remove('visible');
+    if (hint) hint.style.display = 'block';
+    return;
+  }
+  panel.classList.add('visible');
+  if (hint) hint.style.display = 'none';
+  document.getElementById('tidalName').textContent = sel.name || '—';
+  document.getElementById('tidalMode').textContent = sel.mode || '';
+  const stable = state.data.stable.flows;
+  const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+  const labels = { wd_early: 'AM', wd_mid: 'Mid', wd_pmpeak: 'PM', wd_eve: 'Eve', wkend: 'Wknd' };
+  const monthIdx = state.monthIdx ?? 0;
+  const nets = buckets.map(b => {
+    let inn = 0, out = 0;
+    for (const mode of activeModes()) {
+      const rows = stable[`${mode}|${b}`] || [];
+      for (const [o, d, qs] of rows) {
+        const q = qs[monthIdx] || 0;
+        if (q <= 0) continue;
+        if (o === sel.sid) out += q;
+        if (d === sel.sid) inn += q;
+      }
+    }
+    return { bucket: b, inn, out };
+  });
+  const svg = document.getElementById('tidalSvg');
+  const W = 280, H = 90;
+  const padBottom = 14, padTop = 4;
+  const baseY = (H - padBottom + padTop) / 2 + 4;
+  const maxV = Math.max(1, ...nets.map(n => Math.max(n.inn, n.out)));
+  const colW = W / buckets.length;
+  const barW = colW * 0.35;
+  const innerH = (H - padBottom - padTop) / 2;
+  const scale = (innerH - 2) / maxV;
+  const parts = [];
+  // axis baseline
+  parts.push(`<line class="tidal-axis" x1="0" y1="${baseY.toFixed(1)}" x2="${W}" y2="${baseY.toFixed(1)}"/>`);
+  for (let i = 0; i < buckets.length; i++) {
+    const cx = i * colW + colW / 2;
+    const innH = nets[i].inn * scale;
+    const outH = nets[i].out * scale;
+    parts.push(`<rect class="tidal-bar-out" x="${(cx - barW).toFixed(1)}" y="${baseY.toFixed(1)}" width="${(barW * 0.85).toFixed(1)}" height="${outH.toFixed(1)}"/>`);
+    parts.push(`<rect class="tidal-bar-in" x="${cx.toFixed(1)}" y="${(baseY - innH).toFixed(1)}" width="${(barW * 0.85).toFixed(1)}" height="${innH.toFixed(1)}"/>`);
+    parts.push(`<text class="tidal-label" x="${cx.toFixed(1)}" y="${H - 2}" text-anchor="middle">${labels[buckets[i]]}</text>`);
+  }
+  svg.innerHTML = parts.join('');
+  let totalIn = 0, totalOut = 0;
+  for (const n of nets) { totalIn += n.inn; totalOut += n.out; }
+  const ratioStr = totalOut === 0
+    ? '—'
+    : (totalIn / totalOut).toFixed(2);
+  document.getElementById('tidalFoot').textContent =
+    `${fmtCompact(totalIn)} in · ${fmtCompact(totalOut)} out · ratio ${ratioStr}`;
+}
+
+function selectStop(sid) {
+  const s = state.data.stops[sid];
+  if (!s) return;
+  state.selectedStop = { sid, name: s[0], mode: s[1], position: [s[3], s[2]] };
+  renderTidalPlot();
+}
+
+function clearSelectedStop() {
+  state.selectedStop = null;
+  renderTidalPlot();
+}
+
+function showHbTooltip(info, side) {
+  let tt = document.getElementById('tooltip');
+  if (!tt) {
+    tt = document.createElement('div');
+    tt.id = 'tooltip';
+    tt.style.cssText = 'position:fixed;pointer-events:none;background:var(--bg-card);backdrop-filter:blur(12px);border:1px solid var(--border-soft);border-radius:6px;padding:8px 12px;font-size:12px;font-family:var(--font-body);color:var(--text-primary);box-shadow:var(--shadow);z-index:200;max-width:300px;line-height:1.35;';
+    document.body.appendChild(tt);
+  }
+  const o = info.object;
+  const data = computeHeartbeat();
+  const total = data ? data.total : 0;
+  const pct = total > 0 ? (100 * o.q / total).toFixed(2) + '%' : '—';
+  const bucketLabel = ({wd_early:'AM', wd_mid:'Midday', wd_pmpeak:'PM peak', wd_eve:'Evening'})[state.heartbeat.bucket] || '';
+  tt.innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px">${bucketLabel} · ${side}</div>
+    <div style="margin-bottom:2px">${o.name}</div>
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${o.mode || ''}</div>
+    <div style="font-family:var(--font-mono);font-size:11px;margin-top:4px"><strong>${fmt(o.q)}</strong> trips · ${pct}</div>
+  `;
+  tt.style.left = (info.x + 14) + 'px';
+  tt.style.top = (info.y + 14) + 'px';
+  tt.style.display = 'block';
+}
+
+// Filter-only refresh — clears the cache and rebuilds arcs.
+function refreshFilters() {
+  state.cachedArcs = null;
+  refresh();
+}
+// Month-only refresh — keeps the cache, just re-renders layers.
+function refreshMonth() {
+  if (state.overlay) state.overlay.setProps({ layers: buildLayers() });
+  updateCbd();
+  updateHubs();
+  updateTotal();
+  updateTimebarLabel();
+  renderTidalPlot();
+  updateWatchDial();
+}
+
+function showTooltip(info) {
+  let tt = document.getElementById('tooltip');
+  if (!tt) {
+    tt = document.createElement('div');
+    tt.id = 'tooltip';
+    tt.style.cssText = 'position:fixed;pointer-events:none;background:var(--bg-card);backdrop-filter:blur(12px);border:1px solid var(--border-soft);border-radius:6px;padding:8px 12px;font-size:12px;font-family:var(--font-body);color:var(--text-primary);box-shadow:var(--shadow);z-index:200;max-width:300px;line-height:1.35;';
+    document.body.appendChild(tt);
+  }
+  const o = info.object;
+  const idx = state.monthIdx ?? 0;
+  const monthQ = (o.qs && o.qs[idx]) || 0;
+  const monthLabel = state.monthList ? formatMonthLabel(state.monthList[idx]) : '';
+  tt.innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px">${o.mode} · ${fmt(monthQ)} trips · ${monthLabel}</div>
+    <div style="margin-bottom:2px">${o.sourceName}</div>
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">↓</div>
+    <div style="margin-bottom:4px">${o.targetName}</div>
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">lifetime: ${fmt(o.lifetime)}</div>
+  `;
+  tt.style.left = (info.x + 14) + 'px';
+  tt.style.top = (info.y + 14) + 'px';
+  tt.style.display = 'block';
+}
+function hideTooltip() {
+  const tt = document.getElementById('tooltip');
+  if (tt) tt.style.display = 'none';
+}
+
+function updateCbd() {
+  const cbd = state.data.cbd[state.month] || {};
+  let inn = 0, out = 0, intra = 0;
+  for (const mode of activeModes()) {
+    for (const bucket of activeBuckets()) {
+      const c = cbd[`${mode}|${bucket}`];
+      if (!c) continue;
+      inn += c.in || 0;
+      out += c.out || 0;
+      intra += c.intra || 0;
+    }
+  }
+  document.getElementById('cbdIn').textContent = fmt(inn);
+  document.getElementById('cbdOut').textContent = fmt(out);
+  document.getElementById('cbdIntra').textContent = fmt(intra);
+  let ratio = '—', label = 'inbound : outbound';
+  if (inn > 0 && out > 0) {
+    const r = inn / out;
+    if (r >= 1.1) {
+      ratio = r.toFixed(1) + '×';
+      label = 'more in than out';
+    } else if (r <= 1 / 1.1) {
+      ratio = (1 / r).toFixed(1) + '×';
+      label = 'more out than in';
+    } else {
+      ratio = 'balanced';
+      label = 'inbound ≈ outbound';
+    }
+  }
+  document.getElementById('cbdRatio').textContent = ratio;
+  document.getElementById('cbdRatioLabel').textContent = label;
+}
+
+function updateHubs() {
+  const hubs = state.data.hubs[state.month] || {};
+  const stops = state.data.stops;
+  const acc = new Map();
+  for (const mode of activeModes()) {
+    for (const bucket of activeBuckets()) {
+      const entries = hubs[`${mode}|${bucket}|in`] || [];
+      for (const [q, sid] of entries) {
+        acc.set(sid, (acc.get(sid) || 0) + q);
+      }
+    }
+  }
+  const sorted = [...acc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const list = document.getElementById('hubList');
+  list.innerHTML = '';
+  for (const [sid, q] of sorted) {
+    const s = stops[sid];
+    if (!s) continue;
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div>
+        <div class="hub-name">${s[0]}</div>
+        <div class="hub-meta">${s[1]}</div>
+      </div>
+      <div class="hub-count">${fmtCompact(q)}</div>
+    `;
+    li.addEventListener('click', () => {
+      state.map.flyTo({ center: [s[3], s[2]], zoom: 14, duration: 1000 });
+      selectStop(sid);
+    });
+    list.appendChild(li);
+  }
+}
+
+function updateTotal() {
+  const month = state.data.months.find(m => m.month === state.month);
+  if (!month) return;
+  let total = 0;
+  if (state.mode === 'all') {
+    if (state.bucket === 'all') {
+      total = month.total;
+    } else {
+      total = month.by_bucket[state.bucket] || 0;
+    }
+  } else if (state.bucket === 'all') {
+    total = month.by_mode[state.mode] || 0;
+  } else {
+    const rows = state.data.stable.flows[`${state.mode}|${state.bucket}`] || [];
+    const idx = state.monthIdx ?? 0;
+    for (const [, , qs] of rows) total += qs[idx] || 0;
+  }
+  document.getElementById('totalTrips').textContent = fmtCompact(total);
+  document.getElementById('totalLabel').textContent = `trips · ${formatMonthLabel(state.month).toLowerCase()}`;
+}
+
+function formatMonthLabel(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${names[m - 1]} ${y}`;
+}
+
+function setupTimebar() {
+  const months = state.data.months.map(m => m.month).sort();
+  if (months.length <= 1) {
+    document.getElementById('timebar').classList.remove('visible');
+    return;
+  }
+  state.monthList = months;
+  state.monthIdx = months.indexOf(state.month);
+  if (state.monthIdx < 0) state.monthIdx = months.length - 1;
+  state.month = months[state.monthIdx];
+  const slider = document.getElementById('monthSlider');
+  slider.min = 0;
+  slider.max = months.length - 1;
+  slider.value = state.monthIdx;
+  slider.addEventListener('input', e => {
+    state.monthIdx = +e.target.value;
+    state.month = months[state.monthIdx];
+    refreshMonth();
+  });
+  document.getElementById('playBtn').addEventListener('click', togglePlay);
+  document.getElementById('timebar').classList.add('visible');
+  drawSpark();
+  updateTimebarLabel();
+}
+
+function updateTimebarLabel() {
+  if (!state.monthList) return;
+  document.getElementById('timebarMonth').textContent = formatMonthLabel(state.month);
+  document.getElementById('timebarMeta').textContent =
+    `month · ${state.monthIdx + 1}/${state.monthList.length}`;
+  drawSparkCursor();
+}
+
+const EVENT_ANNOTATIONS = [
+  { month: '2020-03', label: 'COVID-19 first lockdown begins' },
+  { month: '2020-04', label: 'Pandemic trough — 2.16M trips, an 8× drop' },
+  { month: '2022-01', label: 'Omicron wave peak' },
+  { month: '2022-02', label: 'Brisbane floods (rain bomb event)' },
+  { month: '2024-08', label: 'QLD 50¢ fares trial begins' }
+];
+
+function drawSpark() {
+  const svg = document.getElementById('spark');
+  const months = state.monthList;
+  if (!months || months.length < 2) return;
+  const totals = months.map(m => {
+    const meta = state.data.months.find(x => x.month === m);
+    return meta ? meta.total : 0;
+  });
+  const W = 800, H = 56;
+  const padX = 2, padTop = 14, padBottom = 12;
+  const maxT = Math.max(...totals), minT = Math.min(...totals);
+  const rng = maxT - minT || 1;
+  const xFor = i => padX + (i / (months.length - 1)) * (W - padX * 2);
+  const yFor = v => H - padBottom - ((v - minT) / rng) * (H - padBottom - padTop);
+  const pts = totals.map((v, i) => `${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ');
+  const baselineY = H - padBottom;
+  const area = `M${xFor(0)},${baselineY} L${pts.replace(/ /g, ' L')} L${xFor(months.length - 1)},${baselineY} Z`;
+
+  // Year tick lines + labels
+  const yearTicks = [];
+  for (let i = 0; i < months.length; i++) {
+    const ym = months[i];
+    if (ym.endsWith('-01')) {
+      const x = xFor(i);
+      const year = ym.slice(0, 4);
+      yearTicks.push(`<line class="spark-year" x1="${x.toFixed(1)}" y1="${padTop - 4}" x2="${x.toFixed(1)}" y2="${baselineY}"/>`);
+      yearTicks.push(`<text class="spark-yearlabel" x="${x.toFixed(1)}" y="${H - 2}" text-anchor="middle">${year}</text>`);
+    }
+  }
+
+  // Event annotation markers
+  const events = [];
+  for (const ev of EVENT_ANNOTATIONS) {
+    const idx = months.indexOf(ev.month);
+    if (idx < 0) continue;
+    const x = xFor(idx);
+    const y = yFor(totals[idx]);
+    events.push(`<line class="spark-event" x1="${x.toFixed(1)}" y1="${padTop - 6}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`);
+    events.push(`<circle class="spark-eventdot" cx="${x.toFixed(1)}" cy="${(padTop - 6).toFixed(1)}" r="3" data-month="${ev.month}" data-label="${ev.label}"><title>${ev.month} — ${ev.label}</title></circle>`);
+  }
+
+  svg.innerHTML = `
+    ${yearTicks.join('')}
+    <path class="spark-area" d="${area}"/>
+    <polyline class="spark-line" points="${pts}"/>
+    ${events.join('')}
+    <line class="spark-cursor" id="sparkCursor" x1="0" y1="${padTop - 6}" x2="0" y2="${baselineY}"/>
+    <circle class="spark-dot" id="sparkDot" cx="0" cy="0" r="3"/>
+  `;
+
+  // Click anywhere on the sparkline to jump to that month
+  svg.addEventListener('click', e => {
+    // If click was on an event dot, jump to that event's month
+    if (e.target.classList && e.target.classList.contains('spark-eventdot')) {
+      const target = e.target.dataset.month;
+      const idx = months.indexOf(target);
+      if (idx >= 0) {
+        state.monthIdx = idx;
+        state.month = target;
+        document.getElementById('monthSlider').value = idx;
+        refreshMonth();
+        return;
+      }
+    }
+    const rect = svg.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const idx = Math.round(x * (months.length - 1));
+    state.monthIdx = Math.max(0, Math.min(months.length - 1, idx));
+    state.month = months[state.monthIdx];
+    document.getElementById('monthSlider').value = state.monthIdx;
+    refreshMonth();
+  });
+  state.sparkXFor = xFor;
+  state.sparkYFor = yFor;
+  state.sparkTotals = totals;
+  state.sparkBaselineY = baselineY;
+  state.sparkPadTop = padTop;
+}
+
+function drawSparkCursor() {
+  if (!state.sparkXFor) return;
+  const cur = document.getElementById('sparkCursor');
+  const dot = document.getElementById('sparkDot');
+  if (!cur || !dot) return;
+  const x = state.sparkXFor(state.monthIdx);
+  const y = state.sparkYFor(state.sparkTotals[state.monthIdx]);
+  cur.setAttribute('x1', x); cur.setAttribute('x2', x);
+  cur.setAttribute('y1', state.sparkPadTop - 6); cur.setAttribute('y2', state.sparkBaselineY);
+  dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+}
+
+// Play drives a month-by-month walk through the heartbeat: each month
+// plays a full daily cycle (4 weekday buckets, or 2 if peak-only) before
+// advancing. Cycle completion is detected inside pulseTick so timing stays
+// in sync with the animation, no fixed-interval jumps.
+function togglePlay() {
+  const btn = document.getElementById('playBtn');
+  if (state.playingMonths) {
+    state.playingMonths = false;
+    stopPulse();
+    btn.classList.remove('playing');
+    btn.textContent = '▶ Play';
+    return;
+  }
+  state.playingMonths = true;
+  btn.classList.add('playing');
+  btn.textContent = '⏸ Pause';
+  if (!state.heartbeat.pulse) startPulse();
+}
+
+// Full refresh — recomputes arcs from filters AND re-renders.
+function refresh() {
+  if (!state.data) return;
+  state.cachedArcs = null;
+  if (state.overlay) state.overlay.setProps({ layers: buildLayers() });
+  updateCbd();
+  updateHubs();
+  updateTotal();
+  updateTimebarLabel();
+  renderTidalPlot();
+  updateWatchDial();
+}
+
+function wireChips(containerId, key) {
+  const container = document.getElementById(containerId);
+  container.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const value = chip.dataset[key];
+    if (value === state[key]) return;
+    container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state[key] = value;
+    refresh();
+  });
+}
+
+// For chips that toggle a boolean state.<key> independently. data-layer attr
+// names the boolean state key prefixed by "show".
+function wireToggleChips(containerId) {
+  const container = document.getElementById(containerId);
+  container.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const layer = chip.dataset.layer;
+    if (!layer) return;
+    const k = 'show' + layer.charAt(0).toUpperCase() + layer.slice(1);
+    state[k] = !state[k];
+    chip.classList.toggle('active', state[k]);
+    refresh();
+  });
+}
+
+function refreshLayersOnly() {
+  if (state.overlay) state.overlay.setProps({ layers: buildLayers() });
+}
+
+function refreshHbUI() {
+  const hb = state.heartbeat;
+  let pulseBucket = null;
+  if (hb.pulse) {
+    const buckets = activePulseBuckets();
+    pulseBucket = buckets[Math.min(hb.pulseBucketIdx || 0, buckets.length - 1)];
+  }
+  document.querySelectorAll('#hbGrid .hb-pill').forEach(p => {
+    const b = p.dataset.bucket, side = p.dataset.side;
+    const on = hb.pulse
+      ? (b === pulseBucket)
+      : (hb.bucket === b && ((side === 'origin' && hb.origin) || (side === 'dest' && hb.dest)));
+    p.classList.toggle('active', on);
+    p.classList.toggle('origin', side === 'origin');
+    p.classList.toggle('dest', side === 'dest');
+  });
+  updateWatchDial();
+}
+
+function wireHeartbeat() {
+  const grid = document.getElementById('hbGrid');
+  grid.addEventListener('click', e => {
+    const pill = e.target.closest('.hb-pill');
+    if (!pill) return;
+    const hb = state.heartbeat;
+    if (hb.pulse) stopPulse();
+    const bucket = pill.dataset.bucket;
+    const side = pill.dataset.side;
+    if (hb.bucket === bucket) {
+      if (side === 'origin') hb.origin = !hb.origin;
+      else hb.dest = !hb.dest;
+      if (!hb.origin && !hb.dest) hb.bucket = null;
+    } else {
+      hb.bucket = bucket;
+      hb.origin = side === 'origin';
+      hb.dest = side === 'dest';
+    }
+    refreshHbUI();
+    refreshLayersOnly();
+  });
+
+
+  const pulseBtn = document.getElementById('pulseBtn');
+  pulseBtn.addEventListener('click', () => {
+    if (state.heartbeat.pulse) stopPulse();
+    else startPulse();
+  });
+
+  const speedSlider = document.getElementById('speedSlider');
+  const speedReadout = document.getElementById('speedReadout');
+  if (speedSlider && speedReadout) {
+    speedSlider.addEventListener('input', () => {
+      const v = parseFloat(speedSlider.value);
+      state.pulseSpeed = v;
+      speedReadout.textContent = v.toFixed(2) + '×';
+    });
+  }
+  const peakBtn = document.getElementById('peakOnlyChip');
+  peakBtn.addEventListener('click', () => {
+    state.heartbeat.peakOnly = !state.heartbeat.peakOnly;
+    peakBtn.classList.toggle('active', state.heartbeat.peakOnly);
+    if (state.heartbeat.pulse) {
+      // Restart cycle so the bucket index doesn't fall outside the new list.
+      state.heartbeat.pulseStartMs = performance.now();
+      state.heartbeat.virtualElapsed = 0;
+      state.heartbeat.lastTickMs = null;
+      state.heartbeat.pulseBucketIdx = 0;
+      state.heartbeat.pulseProgress = 0;
+      state.heartbeat.lastPulseIdx = -1;
+      updatePulseButtonLabel();
+      refreshHbUI();
+      refreshLayersOnly();
+    }
+  });
+
+  const styleRow = document.getElementById('hbPulseStyleChips');
+  styleRow.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const v = chip.dataset.pulseStyle;
+    if (v === state.heartbeat.pulseStyle) return;
+    styleRow.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.heartbeat.pulseStyle = v;
+    if (state.heartbeat.pulse) refreshLayersOnly();
+  });
+
+  // initialise pill side classes
+  refreshHbUI();
+}
+
+// Top-level theme setter so applyPreset() and the chip handler can both call
+// it. Persists to localStorage and refreshes basemap when 'auto' is on.
+function setTheme(t) {
+  const root = document.documentElement;
+  root.dataset.theme = t;
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+  try { localStorage.setItem('translinkOdTheme', t); } catch(e) {}
+  // 'auto' basemap is now driven by the day/night tint, not the UI theme,
+  // so no setStyle here — just refresh the overlay so deck-side styling
+  // (which still reads isDark) updates.
+  if (state.overlay) {
+    state.overlay.setProps({ layers: buildLayers() });
+  }
+}
+
+function wireTheme() {
+  const btn = document.getElementById('themeBtn');
+  const root = document.documentElement;
+  const saved = (() => { try { return localStorage.getItem('translinkOdTheme'); } catch(e) { return null; }})();
+  if (saved) setTheme(saved);
+  btn.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+}
+
+function wireFx() {
+  const row = document.getElementById('fxChips');
+  row.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip || !chip.dataset.fx) return;
+    const k = chip.dataset.fx;
+    state.fx[k] = !state.fx[k];
+    chip.classList.toggle('active', state.fx[k]);
+    refreshLayersOnly();
+  });
+  // Anchors toggle: shows/hides O+D fixed circles so the moving particles
+  // (and the glow accumulation) can be read on their own.
+  const anchorsBtn = document.getElementById('anchorsChip');
+  anchorsBtn.addEventListener('click', () => {
+    state.showAnchors = !state.showAnchors;
+    anchorsBtn.classList.toggle('active', state.showAnchors);
+    refreshLayersOnly();
+  });
+  // Presence glow: per-stop accumulation across the active bucket cycle.
+  // CBD glows up over AM as people arrive, drains over PM as they leave.
+  const presenceBtn = document.getElementById('presenceChip');
+  presenceBtn.addEventListener('click', () => {
+    state.presenceMode = !state.presenceMode;
+    presenceBtn.classList.toggle('active', state.presenceMode);
+    // Cache may need rebuild if mode/peak-only changed since last enable
+    state.presenceCache = null;
+    refreshLayersOnly();
+  });
+  // Movie / Reset presets
+  document.querySelector('.preset-row').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const preset = chip.dataset.preset;
+    const fxRow = document.getElementById('fxChips');
+    if (preset === 'movie') {
+      state.fx = { streak: true, glow: true, bokeh: false };
+      state.basemap = 'constellation';
+      // Sync UI
+      fxRow.querySelectorAll('.chip').forEach(c => {
+        c.classList.toggle('active', state.fx[c.dataset.fx] === true);
+      });
+      document.querySelectorAll('#bmChips .chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.bm === 'constellation');
+      });
+      // Auto-start the pulse so the effect is immediately visible
+      if (!state.heartbeat.pulse) startPulse();
+      swapBasemap();
+    } else if (preset === 'reset') {
+      state.fx = { streak: false, glow: false, bokeh: false };
+      state.anomalyMode = 'off';
+      state.basemap = 'auto';
+      fxRow.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('#anomalyChips .chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.anomaly === 'off');
+      });
+      document.querySelectorAll('#bmChips .chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.bm === 'auto');
+      });
+      swapBasemap();
+    }
+    refreshLayersOnly();
+  });
+}
+
+function wireAnomaly() {
+  const row = document.getElementById('anomalyChips');
+  row.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const v = chip.dataset.anomaly;
+    if (v === state.anomalyMode) return;
+    row.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.anomalyMode = v;
+    refreshLayersOnly();
+  });
+}
+
+function wireBasemap() {
+  const row = document.getElementById('bmChips');
+  row.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const v = chip.dataset.bm;
+    if (v === state.basemap) return;
+    row.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.basemap = v;
+    swapBasemap();
+  });
+  const dn = document.getElementById('dayNightChip');
+  if (dn) {
+    dn.addEventListener('click', () => {
+      state.dayNightCycle = !state.dayNightCycle;
+      dn.classList.toggle('active', state.dayNightCycle);
+      // If cycling is off, snap the tint to clear immediately rather than
+      // waiting for the next pulseTick (which may not be running).
+      if (!state.dayNightCycle) updateDayNightTint(null, 0);
+    });
+  }
+}
+
+function wireLabels() {
+  const row = document.getElementById('labelChips');
+  row.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const k = chip.dataset.label;
+    state.labelOverrides[k] = !state.labelOverrides[k];
+    chip.classList.toggle('active', state.labelOverrides[k]);
+    applyLabelOverrides();
+  });
+}
+
+// Sun/moon dial — rotates a disc so sun (mounted at top of disc) traces the
+// upper half during day, moon (180° opposite) appears at night. Each pulse
+// bucket maps to a slice of the day cycle:
+//   day position = 0 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset, 1 midnight
+//   rotation     = (dayPos * 360 + 180) mod 360
+// The +180 offset puts noon at rotation=0 (sun at top of dial).
+const BUCKET_DAY_POS = {
+  wd_early:  [0.21, 0.36],   // AM peak: pre-dawn → mid-morning
+  wd_mid:    [0.40, 0.60],   // Midday: late morning → early afternoon
+  wd_pmpeak: [0.66, 0.78],   // PM peak: afternoon → early sunset
+  wd_eve:    [0.83, 0.95],   // Evening: dusk → late evening
+  wkend:     [0.50, 0.50]    // Weekend: pinned at noon
+};
+const BUCKET_TIME_LABEL = {
+  wd_early:  'AM peak',
+  wd_mid:    'Midday',
+  wd_pmpeak: 'PM peak',
+  wd_eve:    'Evening',
+  wkend:     'Weekend'
+};
+
+// Lottie sun-moon-switch frame landmarks (provided by the asset author):
+//   frame 0   = full day   (sun centred)
+//   frame 29  = full night (moon centred)
+//   frame 88  = full day again (loop wrap region)
+//
+// The smooth day↔night transition that the asset author drew lives in the
+// 0→29 range. Sunset = play 0→29 forward; sunrise = play 29→0 reverse.
+// Holding at frame 58 then jumping to 88 (the "shorter" way back to day)
+// caused a visible snap because 58→88 is still inside the night plateau
+// before the sunrise visuals begin — using the reversed sunset avoids that.
+//
+// The dial HOLDS at day or night for most of the bucket, then runs a quick
+// transition right at the end of the last bucket on each side. Same logic
+// in peak-only mode (AM,PM) and full mode (AM,Mid,PM,Eve) — driven by
+// "is this bucket's next-bucket on the same side or opposite?".
+const LOTTIE_DAY_HOLD = 0;                   // full day
+const LOTTIE_NIGHT_HOLD = 29;                // full night
+const LOTTIE_TRANSITION_FRACTION = 0.12;     // last 12% of the bucket = ~240ms transition
+const DAY_SIDE_BUCKETS = new Set(['wd_early', 'wd_mid', 'wkend']);
+
+function lottieFrameForBucket(bucket, progress) {
+  const buckets = activePulseBuckets();
+  const idx = buckets.indexOf(bucket);
+  if (idx < 0) return LOTTIE_DAY_HOLD;
+  const isDay = DAY_SIDE_BUCKETS.has(bucket);
+  const nextBucket = buckets[(idx + 1) % buckets.length];
+  const nextIsDay = DAY_SIDE_BUCKETS.has(nextBucket);
+  // Same-side neighbour → hold the whole bucket
+  if (isDay === nextIsDay) return isDay ? LOTTIE_DAY_HOLD : LOTTIE_NIGHT_HOLD;
+  // Opposite-side neighbour → hold for most of bucket, then quick transition
+  const TF = LOTTIE_TRANSITION_FRACTION;
+  if (progress < 1 - TF) return isDay ? LOTTIE_DAY_HOLD : LOTTIE_NIGHT_HOLD;
+  const tProg = (progress - (1 - TF)) / TF;       // 0..1 within transition window
+  return isDay
+    ? tProg * 29                                   // sunset:  0  → 29 (forward)
+    : 29 - tProg * 29;                             // sunrise: 29 → 0  (reverse of sunset)
+}
+
+// Linearly interpolate two RGB hex colours and return as #rrggbb.
+function lerpColor(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const r = Math.round(((pa >> 16) & 255) * (1 - t) + ((pb >> 16) & 255) * t);
+  const g = Math.round(((pa >> 8) & 255) * (1 - t) + ((pb >> 8) & 255) * t);
+  const bl = Math.round((pa & 255) * (1 - t) + (pb & 255) * t);
+  return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
+}
+
+// Four-stop sky gradient that varies with time of day. Indexed by dayPos
+// (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset, 1=midnight). Returns
+// [topColor, upperMidColor, lowerMidColor, horizonColor].
+const SKY_KEYFRAMES = [
+  // dayPos 0   midnight                     dawn approach
+  { pos: 0.00, c: ['#06080f', '#0a0e1a', '#10121e', '#08080d'] },
+  { pos: 0.18, c: ['#1a1f3a', '#3a3a5a', '#6a4848', '#2a1a2a'] },  // pre-dawn
+  { pos: 0.25, c: ['#3a3a6a', '#aa6655', '#ffaa66', '#5a2a3a'] },  // sunrise
+  { pos: 0.35, c: ['#5a86c4', '#a8c8e6', '#ffe2b8', '#7a98c4'] },  // morning
+  { pos: 0.50, c: ['#5b87c4', '#82b4dd', '#a8c8e6', '#3a5d8c'] },  // noon
+  { pos: 0.65, c: ['#5b87c4', '#82b4dd', '#a8c8e6', '#5d6f8c'] },  // afternoon
+  { pos: 0.75, c: ['#3a3a6a', '#aa3366', '#ff7a55', '#3a1a2a'] },  // sunset
+  { pos: 0.85, c: ['#1a1f3a', '#3a3a5a', '#664a5a', '#1a1a2a'] },  // dusk
+  { pos: 1.00, c: ['#06080f', '#0a0e1a', '#10121e', '#08080d'] }   // back to midnight
+];
+
+function skyStopsForDayPos(dayPos) {
+  // Find the two keyframes the current dayPos falls between, lerp between them
+  for (let i = 0; i < SKY_KEYFRAMES.length - 1; i++) {
+    const a = SKY_KEYFRAMES[i];
+    const b = SKY_KEYFRAMES[i + 1];
+    if (dayPos >= a.pos && dayPos <= b.pos) {
+      const t = (dayPos - a.pos) / Math.max(0.0001, b.pos - a.pos);
+      return [
+        lerpColor(a.c[0], b.c[0], t),
+        lerpColor(a.c[1], b.c[1], t),
+        lerpColor(a.c[2], b.c[2], t),
+        lerpColor(a.c[3], b.c[3], t)
+      ];
+    }
+  }
+  return SKY_KEYFRAMES[0].c;
+}
+
+// Sum CBD inbound + outbound for the current month × active filters. Mirrors
+// the logic in updateCbd() but returns rather than updating a card.
+function dialCbdCounts() {
+  if (!state.data || !state.month) return { inn: 0, out: 0 };
+  const cbd = state.data.cbd[state.month] || {};
+  let inn = 0, out = 0;
+  for (const mode of activeModes()) {
+    for (const bucket of activeBuckets()) {
+      const c = cbd[`${mode}|${bucket}`];
+      if (!c) continue;
+      inn += c.in || 0;
+      out += c.out || 0;
+    }
+  }
+  return { inn, out };
+}
+
+// Lottie state — set once on init, scrubbed on each updateWatchDial call.
+state.dialLottie = null;
+state.dialLottieFrames = 0;
+
+function initDialLottie() {
+  const container = document.getElementById('dialLottie');
+  if (!container || typeof lottie === 'undefined') return;
+  state.dialLottie = lottie.loadAnimation({
+    container,
+    renderer: 'svg',
+    loop: false,
+    autoplay: false,
+    path: 'sun-moon.json'
+  });
+  state.dialLottie.addEventListener('DOMLoaded', () => {
+    state.dialLottieFrames = state.dialLottie.totalFrames || 110;
+    // Initial frame to match dayPos
+    updateWatchDial();
+  });
+}
+
+function updateWatchDial() {
+  const monthEl = document.getElementById('dialMonth');
+  const timeEl = document.getElementById('dialTime');
+  const inEl = document.getElementById('dialIn');
+  const outEl = document.getElementById('dialOut');
+  if (!monthEl || !timeEl) return;
+  monthEl.textContent = state.month ? formatMonthLabel(state.month) : '—';
+  // Pick bucket + progress driving the dial: pulse > manual selection > idle.
+  const hb = state.heartbeat;
+  let bucket, progress;
+  if (hb.pulse) {
+    const buckets = activePulseBuckets();
+    const idx = Math.min(hb.pulseBucketIdx || 0, buckets.length - 1);
+    bucket = buckets[idx];
+    progress = hb.pulseProgress || 0;
+  } else if (hb.bucket) {
+    bucket = hb.bucket;
+    progress = 0.5;
+  } else {
+    bucket = 'wd_mid';
+    progress = 0.5;
+  }
+  const range = BUCKET_DAY_POS[bucket] || [0.5, 0.5];
+  const dayPos = range[0] + (range[1] - range[0]) * progress;
+  timeEl.textContent = BUCKET_TIME_LABEL[bucket] || '';
+
+  // Sky gradient — recompute four stops from current time of day
+  const stops = skyStopsForDayPos(dayPos);
+  for (let i = 0; i < 4; i++) {
+    const stopEl = document.getElementById('skyStop' + (i + 1));
+    if (stopEl) stopEl.setAttribute('stop-color', stops[i]);
+  }
+  // Stars fade in at night (dayPos < 0.22 or > 0.82) and fade out during day.
+  const starsRoot = document.getElementById('dialStars');
+  if (starsRoot) {
+    let starOpacity = 0;
+    if (dayPos < 0.22) starOpacity = 1 - (dayPos / 0.22);
+    else if (dayPos > 0.82) starOpacity = (dayPos - 0.82) / 0.18;
+    Array.from(starsRoot.children).forEach((s, i) => {
+      const variance = 0.7 + 0.3 * Math.sin(i * 1.7);
+      s.setAttribute('opacity', (starOpacity * variance).toFixed(2));
+    });
+  }
+
+  // Lottie sun/moon scrubbing — bucket-based mapping using the animation's
+  // own phase landmarks: frame 0 = full day, transition to frame 29 (full
+  // night), holds night through to frame 88, then transitions back to day
+  // by frame 110 (== 0 wrapped). Each TransLink bucket gets a slice that
+  // matches its time-of-day intuition.
+  if (state.dialLottie && state.dialLottieFrames > 0) {
+    state.dialLottie.goToAndStop(lottieFrameForBucket(bucket, progress), true);
+  }
+
+  // CBD inbound/outbound counts for the current month
+  if (inEl && outEl) {
+    const { inn, out } = dialCbdCounts();
+    inEl.textContent = fmtCompact(inn);
+    outEl.textContent = fmtCompact(out);
+  }
+}
+
+// Snapshot every visual + camera + animation setting into a single POJO.
+// Used by the "Copy full preset" button — the result can be saved to disk
+// or pasted into a puppeteer script: `await page.evaluate(p => applyPreset(p), preset)`.
+function captureState() {
+  const c = state.map ? state.map.getCenter() : { lng: 0, lat: 0 };
+  return {
+    camera: state.map ? {
+      center: [parseFloat(c.lng.toFixed(5)), parseFloat(c.lat.toFixed(5))],
+      zoom: parseFloat(state.map.getZoom().toFixed(3)),
+      bearing: parseFloat(state.map.getBearing().toFixed(1)),
+      pitch: parseFloat(state.map.getPitch().toFixed(1))
+    } : null,
+    theme: document.documentElement.dataset.theme || 'light',
+    mode: state.mode,
+    view: state.view,
+    showNetwork: state.showNetwork,
+    fx: { ...state.fx },
+    showAnchors: state.showAnchors,
+    presenceMode: state.presenceMode,
+    anomalyMode: state.anomalyMode,
+    basemap: state.basemap,
+    labelOverrides: { ...state.labelOverrides },
+    heartbeat: {
+      pulseStyle: state.heartbeat.pulseStyle,
+      peakOnly: state.heartbeat.peakOnly,
+      pulseBucketIdx: state.heartbeat.pulseBucketIdx ?? 0,
+      pulseProgress: parseFloat((state.heartbeat.pulseProgress ?? 0).toFixed(3))
+    },
+    month: state.month,
+    pulseSpeed: state.pulseSpeed,
+    pulse: state.heartbeat.pulse
+  };
+}
+
+// Apply a full preset object — sets state, syncs all sidebar chips, swaps
+// basemap if needed, kicks off / halts the pulse to match. Idempotent.
+function applyPreset(p) {
+  if (!p) return;
+  if (p.camera && state.map) {
+    state.map.jumpTo({
+      center: p.camera.center,
+      zoom: p.camera.zoom,
+      bearing: p.camera.bearing,
+      pitch: p.camera.pitch
+    });
+  }
+  // Theme: applied early so the basemap/style swap (if needed) happens before
+  // we touch anything else that might also trigger one.
+  if (p.theme !== undefined && p.theme !== document.documentElement.dataset.theme) {
+    setTheme(p.theme);
+  }
+  if (p.mode !== undefined) state.mode = p.mode;
+  if (p.view !== undefined) state.view = p.view;
+  if (p.showNetwork !== undefined) state.showNetwork = p.showNetwork;
+  if (p.fx) state.fx = { ...state.fx, ...p.fx };
+  if (p.showAnchors !== undefined) state.showAnchors = p.showAnchors;
+  if (p.presenceMode !== undefined) {
+    if (state.presenceMode !== p.presenceMode) state.presenceCache = null;
+    state.presenceMode = p.presenceMode;
+  }
+  if (p.anomalyMode !== undefined) state.anomalyMode = p.anomalyMode;
+  if (p.labelOverrides) state.labelOverrides = { ...state.labelOverrides, ...p.labelOverrides };
+  if (p.heartbeat) {
+    if (p.heartbeat.pulseStyle !== undefined) state.heartbeat.pulseStyle = p.heartbeat.pulseStyle;
+    if (p.heartbeat.peakOnly !== undefined) state.heartbeat.peakOnly = p.heartbeat.peakOnly;
+    if (p.heartbeat.pulseBucketIdx !== undefined) state.heartbeat.pulseBucketIdx = p.heartbeat.pulseBucketIdx;
+    if (p.heartbeat.pulseProgress !== undefined) state.heartbeat.pulseProgress = p.heartbeat.pulseProgress;
+  }
+  if (p.pulseSpeed !== undefined) {
+    state.pulseSpeed = p.pulseSpeed;
+    const slider = document.getElementById('speedSlider');
+    const readout = document.getElementById('speedReadout');
+    if (slider) slider.value = String(p.pulseSpeed);
+    if (readout) readout.textContent = p.pulseSpeed.toFixed(2) + '×';
+  }
+  if (p.month !== undefined && state.monthList) {
+    const idx = state.monthList.indexOf(p.month);
+    if (idx >= 0) {
+      state.monthIdx = idx;
+      state.month = p.month;
+      const slider = document.getElementById('monthSlider');
+      if (slider) slider.value = idx;
+    }
+  }
+  let basemapChanged = false;
+  if (p.basemap !== undefined && p.basemap !== state.basemap) {
+    state.basemap = p.basemap;
+    basemapChanged = true;
+  }
+  syncUiFromState();
+  if (basemapChanged) {
+    swapBasemap();
+  } else {
+    applyLabelOverrides();
+    if (state.overlay) state.overlay.setProps({ layers: buildLayers() });
+  }
+  refresh();
+  if (p.pulse === true && !state.heartbeat.pulse) startPulse();
+  else if (p.pulse === false && state.heartbeat.pulse) stopPulse();
+}
+
+// Reflect the current state into every sidebar chip's active class. Used at
+// load time so chips reflect the default state without hard-coding "active"
+// in the HTML, and by applyPreset() to keep UI consistent with state changes.
+function syncUiFromState() {
+  const setActive = (sel, attr, want) => {
+    document.querySelectorAll(sel).forEach(c => c.classList.toggle('active', c.dataset[attr] === want));
+  };
+  setActive('#modeChips .chip', 'mode', state.mode);
+  setActive('#viewChips .chip', 'view', state.view);
+  setActive('#anomalyChips .chip', 'anomaly', state.anomalyMode);
+  setActive('#bmChips .chip', 'bm', state.basemap);
+  document.querySelectorAll('#fxChips .chip').forEach(c => c.classList.toggle('active', !!state.fx[c.dataset.fx]));
+  document.querySelectorAll('#labelChips .chip').forEach(c => c.classList.toggle('active', !!state.labelOverrides[c.dataset.label]));
+  document.querySelectorAll('#hbPulseStyleChips .chip').forEach(c => c.classList.toggle('active', c.dataset.pulseStyle === state.heartbeat.pulseStyle));
+  const network = document.querySelector('#layerChips .chip[data-layer="network"]');
+  if (network) network.classList.toggle('active', state.showNetwork);
+  const anchors = document.getElementById('anchorsChip');
+  if (anchors) anchors.classList.toggle('active', state.showAnchors);
+  const presence = document.getElementById('presenceChip');
+  if (presence) presence.classList.toggle('active', state.presenceMode);
+  const peak = document.getElementById('peakOnlyChip');
+  if (peak) peak.classList.toggle('active', state.heartbeat.peakOnly);
+  document.body.classList.toggle('constellation', state.basemap === 'constellation');
+}
+
+// Live camera readout — pan/zoom/rotate updates the panel; click "Copy as
+// JSON" puts a paste-ready snippet on the clipboard for puppeteer scripts.
+function wireCamera() {
+  const cEl = document.getElementById('camCenter');
+  const zEl = document.getElementById('camZoom');
+  const bEl = document.getElementById('camBearing');
+  const pEl = document.getElementById('camPitch');
+  const update = () => {
+    if (!state.map) return;
+    const c = state.map.getCenter();
+    cEl.textContent = `${c.lng.toFixed(4)}, ${c.lat.toFixed(4)}`;
+    zEl.textContent = state.map.getZoom().toFixed(2);
+    bEl.textContent = state.map.getBearing().toFixed(1) + '°';
+    pEl.textContent = state.map.getPitch().toFixed(1) + '°';
+  };
+  const attach = () => {
+    if (!state.map) return;
+    state.map.on('move', update);
+    state.map.on('moveend', update);
+    update();
+  };
+  if (state.map) attach(); else setTimeout(attach, 200);
+
+  const copyToClipboard = async (text, btn) => {
+    const orig = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓ Copied';
+    } catch (e) {
+      window.prompt('Copy this:', text);
+      btn.textContent = '✓ Shown';
+    }
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  };
+
+  const camBtn = document.getElementById('camCopyBtn');
+  camBtn.addEventListener('click', () => {
+    if (!state.map) return;
+    const c = state.map.getCenter();
+    const obj = {
+      center: [parseFloat(c.lng.toFixed(5)), parseFloat(c.lat.toFixed(5))],
+      zoom: parseFloat(state.map.getZoom().toFixed(3)),
+      bearing: parseFloat(state.map.getBearing().toFixed(1)),
+      pitch: parseFloat(state.map.getPitch().toFixed(1))
+    };
+    copyToClipboard(JSON.stringify(obj, null, 2), camBtn);
+  });
+
+  const presetBtn = document.getElementById('presetCopyBtn');
+  presetBtn.addEventListener('click', () => {
+    copyToClipboard(JSON.stringify(captureState(), null, 2), presetBtn);
+  });
+}
+
+function wireTidal() {
+  document.getElementById('tidalClose').addEventListener('click', clearSelectedStop);
+}
+
+// Tracks the map bearing in the compass needle, click resets to north + flat.
+// Capture-frame sizing — fits the largest 16:9 box inside the window with a
+// 24px margin, centred. Mirrors the aspect ratio of the GIF capture viewport
+// so framing the camera is honest about what'll end up in the recording.
+// Returns the rect so callers can also reposition the map canvas to match.
+function captureFrameRect() {
+  const margin = 24;
+  const availW = window.innerWidth  - margin * 2;
+  const availH = window.innerHeight - margin * 2;
+  const ratio = 1920 / 1080;
+  let w, h;
+  if (availW / availH > ratio) { h = availH; w = h * ratio; }
+  else                          { w = availW; h = w / ratio; }
+  return {
+    width:  Math.round(w),
+    height: Math.round(h),
+    left:   Math.round((window.innerWidth  - w) / 2),
+    top:    Math.round((window.innerHeight - h) / 2)
+  };
+}
+function sizeCaptureFrame() {
+  const el = document.getElementById('captureFrame');
+  if (!el) return;
+  const r = captureFrameRect();
+  el.style.width  = `${r.width}px`;
+  el.style.height = `${r.height}px`;
+  el.style.left   = `${r.left}px`;
+  el.style.top    = `${r.top}px`;
+  // If we're in UI-hidden mode, the map canvas tracks the frame so the
+  // visible scene matches what the capture script will record at 1920×1080.
+  if (document.body.classList.contains('ui-hidden')) fitMapToFrame(r);
+}
+function fitMapToFrame(rect) {
+  const map = document.getElementById('map');
+  if (!map) return;
+  const r = rect || captureFrameRect();
+  map.style.top    = `${r.top}px`;
+  map.style.left   = `${r.left}px`;
+  map.style.width  = `${r.width}px`;
+  map.style.height = `${r.height}px`;
+  map.style.right  = 'auto';
+  map.style.bottom = 'auto';
+  if (state.map) state.map.resize();
+}
+function clearMapFit() {
+  const map = document.getElementById('map');
+  if (!map) return;
+  map.style.top = map.style.left = map.style.right = map.style.bottom = '';
+  map.style.width = map.style.height = '';
+  if (state.map) state.map.resize();
+}
+
+function wireMedicalDial() {
+  const mount = document.getElementById('medicalDialMount');
+  if (!mount || !window.GIS || !window.GIS.medicalDial) return;
+  state.medicalDial = window.GIS.medicalDial.create(mount, { width: 240 });
+  // Render an initial frame so the dial isn't empty before the pulse starts.
+  refreshMedicalDial();
+}
+function refreshMedicalDial() {
+  if (!state.medicalDial) return;
+  const hb = state.heartbeat;
+  state.medicalDial.update({
+    bucketIdx: hb.pulseBucketIdx || 0,
+    progress:  hb.pulseProgress  || 0,
+    peakOnly:  !!hb.peakOnly
+  });
+}
+
+function wireUiToggle() {
+  const btn = document.getElementById('uiToggleBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const hidden = document.body.classList.toggle('ui-hidden');
+    document.body.classList.toggle('show-capture-frame', hidden);
+    btn.classList.toggle('active', hidden);
+    if (hidden) fitMapToFrame();
+    else        clearMapFit();
+  });
+  sizeCaptureFrame();
+  window.addEventListener('resize', sizeCaptureFrame);
+}
+
+function wireCompass() {
+  const btn = document.getElementById('compass');
+  const needle = document.getElementById('compassNeedle');
+  const update = () => {
+    if (!state.map) return;
+    const bearing = state.map.getBearing();
+    // Needle should point to actual north on screen — counter-rotate by bearing.
+    needle.style.transform = `rotate(${(-bearing).toFixed(1)}deg)`;
+  };
+  const attach = () => {
+    if (!state.map) return;
+    state.map.on('rotate', update);
+    state.map.on('rotateend', update);
+    state.map.on('move', update);
+    update();
+  };
+  btn.addEventListener('click', () => {
+    if (!state.map) return;
+    state.map.easeTo({ bearing: 0, pitch: 0, duration: 600 });
+  });
+  // Map may not be ready yet — try now, retry on load.
+  if (state.map) attach();
+  else setTimeout(attach, 100);
+}
+
+// Doppler-night defaults: dark constellation basemap, peak-only pulse,
+// flow-vs-typical anomaly modulation. Applied at startup unless URL state
+// overrides.
+const DEFAULT_PRESET = {
+  camera: { center: [153.28239, -27.61057], zoom: 10, bearing: 30.1, pitch: 60 },
+  theme: 'dark',
+  mode: 'all',
+  view: 'none',
+  showNetwork: true,
+  fx: { streak: false, glow: true, bokeh: true },
+  showAnchors: true,
+  presenceMode: true,
+  anomalyMode: 'flow',
+  basemap: 'constellation',
+  labelOverrides: { hideAll: true, hideBrisbane: false },
+  heartbeat: {
+    pulseStyle: 'massStream',
+    peakOnly: true,
+    pulseBucketIdx: 1,
+    pulseProgress: 0.141
+  },
+  month: '2026-03',
+  pulseSpeed: 1,
+  pulse: true
+};
+
+(async () => {
+  wireChips('modeChips', 'mode');
+  wireChips('viewChips', 'view');
+  wireToggleChips('layerChips');
+  wireHeartbeat();
+  wireFx();
+  wireAnomaly();
+  wireBasemap();
+  wireLabels();
+  wireTidal();
+  wireTheme();
+  initMap();
+  wireCompass();
+  wireUiToggle();
+  wireMedicalDial();
+  wireCamera();
+  initDialLottie();
+  try {
+    state.data = await loadData();
+  } catch (err) {
+    document.getElementById('loading').textContent = 'Error loading data — run scripts/build_payload.py first';
+    console.error(err);
+    return;
+  }
+  document.getElementById('loading').classList.add('hidden');
+  setupTimebar();
+  // Reflect default state into the sidebar chips (no hard-coded "active")
+  syncUiFromState();
+  // Wait for map ready, then apply the default preset (which includes basemap
+  // swap, camera, and starts the pulse) and optionally kick off month-walk.
+  // ?capture=1 disables the default preset so the capture script's applyPreset
+  // doesn't race with this boot-time one — the previous race left captures
+  // stuck on the wrong basemap.
+  const captureMode = new URLSearchParams(location.search).get('capture') === '1';
+  const onReady = () => {
+    if (!captureMode) applyPreset(DEFAULT_PRESET);
+    if (state.autoStart) {
+      // togglePlay() turns on month-walk AND starts the pulse.
+      togglePlay();
+    }
+  };
+  if (state.overlay) onReady();
+  else state.map.on('load', onReady);
+})();
+</script>
+</body>
+</html>

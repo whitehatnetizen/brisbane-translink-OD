@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CBD trips · Q1 2026</title>
+<style>
+  :root {
+    --bg: #0a0a0e;
+    --panel: #14141a;
+    --border: rgba(228, 62, 78, 0.18);
+    --in:  #e43e4e;
+    --out: #4a8fb8;
+    --intra: rgba(228, 62, 78, 0.45);
+    --text: #c8c8d0;
+    --text-dim: rgba(200, 200, 208, 0.6);
+    --text-faint: rgba(200, 200, 208, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; background: var(--bg); color: var(--text);
+               font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 48px 32px; }
+  header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  h1 { font-family: 'IBM Plex Sans', system-ui, sans-serif; font-weight: 400;
+       font-size: 26px; letter-spacing: 0.02em; margin: 0 0 4px 0; color: var(--text); }
+  .sub { font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; }
+  .legend { display: flex; gap: 24px; margin-top: 16px; font-size: 11px; }
+  .legend span { display: flex; align-items: center; gap: 6px; color: var(--text-dim); letter-spacing: 0.04em; }
+  .swatch { width: 10px; height: 10px; border-radius: 1px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+           padding: 24px 22px; }
+  .panel h2 { font-family: 'IBM Plex Sans', system-ui, sans-serif; font-weight: 500;
+              font-size: 18px; margin: 0 0 4px 0; letter-spacing: 0.02em; color: var(--text); }
+  .month-sub { font-size: 11px; color: var(--text-faint); letter-spacing: 0.18em;
+               text-transform: uppercase; margin-bottom: 18px; }
+
+  .totals { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;
+            padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .total-row { display: grid; grid-template-columns: 60px 1fr auto; align-items: baseline; gap: 10px; }
+  .total-row .lbl { font-size: 10px; letter-spacing: 0.2em; color: var(--text-dim); text-transform: uppercase; }
+  .total-row .num { font-family: 'IBM Plex Sans', system-ui, sans-serif; font-weight: 300;
+                    font-size: 22px; line-height: 1; text-align: right; letter-spacing: -0.01em; }
+  .total-row.in  .num { color: var(--in); }
+  .total-row.out .num { color: var(--out); }
+  .total-row.intra .num { color: var(--intra); font-size: 14px; opacity: 0.7; }
+
+  .section-label { font-size: 10px; letter-spacing: 0.2em; color: var(--text-faint);
+                   text-transform: uppercase; margin: 18px 0 10px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 5px 0; text-align: right; }
+  th { font-weight: 400; color: var(--text-faint); font-size: 10px; letter-spacing: 0.1em;
+       text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td:first-child, th:first-child { text-align: left; color: var(--text-dim); }
+  .bar { position: relative; height: 4px; background: rgba(228, 62, 78, 0.06); border-radius: 1px; overflow: hidden; margin-top: 3px; }
+  .bar-in  { position: absolute; top: 0; left: 0; height: 100%; background: var(--in);  opacity: 0.85; }
+  .bar-out { position: absolute; top: 0; right: 0; height: 100%; background: var(--out); opacity: 0.85; }
+
+  .bucket-bar { display: grid; grid-template-columns: 56px 1fr 1fr; gap: 10px; align-items: center;
+                margin-bottom: 6px; }
+  .bucket-bar .b-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.04em; }
+  .bucket-bar .b-side  { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .bucket-bar .b-side.in   { justify-content: flex-end; color: var(--in); }
+  .bucket-bar .b-side.out  { justify-content: flex-start; color: var(--out); }
+  .bucket-bar .b-fill { height: 6px; flex: 0 0 auto; }
+  .bucket-bar .b-fill.in  { background: var(--in);  border-radius: 1px 0 0 1px; }
+  .bucket-bar .b-fill.out { background: var(--out); border-radius: 0 1px 1px 0; }
+
+  /* Net flow row at the bottom of each panel */
+  .net { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
+         display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; }
+  .net .lbl { color: var(--text-dim); letter-spacing: 0.16em; text-transform: uppercase; }
+  .net .val { font-family: 'IBM Plex Sans', system-ui, sans-serif; font-weight: 400; font-size: 14px; }
+  .net.pos .val { color: var(--in); }
+  .net.neg .val { color: var(--out); }
+
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--border);
+           font-size: 11px; color: var(--text-faint); letter-spacing: 0.06em; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>CBD trips · Q1 2026</h1>
+    <div class="sub">South-East Queensland · TransLink OD · trips arriving at and departing from the Brisbane CBD ring</div>
+    <div class="legend">
+      <span><span class="swatch" style="background: var(--in)"></span>inbound to CBD</span>
+      <span><span class="swatch" style="background: var(--out)"></span>outbound from CBD</span>
+      <span><span class="swatch" style="background: var(--intra)"></span>intra-CBD</span>
+    </div>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    Data: TransLink OD pre-aggregated <code>data/build/cbd.json</code>. Trips counted as <em>in</em> when their origin is outside the CBD ring and destination is inside; <em>out</em> when the reverse; <em>intra</em> when both endpoints are inside. Buckets: AM peak ≈ 6:30–9:30, midday ≈ 9:30–16:00, PM peak ≈ 16:00–19:00, evening ≈ 19:00–06:30, weekend.
+  </footer>
+</div>
+
+<script>
+const MONTH_NAMES = { '2026-01': 'January', '2026-02': 'February', '2026-03': 'March' };
+const MODE_ORDER = ['Bus', 'Rail', 'Ferry', 'Light Rail'];
+const BUCKET_LABEL = { wd_early: 'AM peak', wd_mid: 'Midday', wd_pmpeak: 'PM peak', wd_eve: 'Evening', wkend: 'Weekend' };
+const BUCKET_ORDER = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+
+function fmt(n) { return n.toLocaleString('en-AU'); }
+function fmtSigned(n) { const s = n >= 0 ? '+' : ''; return s + n.toLocaleString('en-AU'); }
+
+function buildPanel(month, data) {
+  const t = data.total;
+  const net = t.in - t.out;
+  const maxBucket = Math.max(...BUCKET_ORDER.map(b => Math.max(data.byBucket[b]?.in || 0, data.byBucket[b]?.out || 0)));
+  const maxMode = Math.max(...MODE_ORDER.map(m => Math.max(data.byMode[m].in, data.byMode[m].out)));
+
+  const modeRows = MODE_ORDER.map(m => {
+    const md = data.byMode[m];
+    const inPct  = (md.in  / maxMode) * 100;
+    const outPct = (md.out / maxMode) * 100;
+    return `
+      <tr>
+        <td>${m}</td>
+        <td>${fmt(md.in)}</td>
+        <td>${fmt(md.out)}</td>
+      </tr>
+      <tr><td colspan="3" style="padding: 0">
+        <div class="bar"><div class="bar-in" style="width: ${(inPct / 2).toFixed(1)}%"></div><div class="bar-out" style="width: ${(outPct / 2).toFixed(1)}%"></div></div>
+      </td></tr>
+    `;
+  }).join('');
+
+  const bucketBars = BUCKET_ORDER.map(b => {
+    const bd = data.byBucket[b] || { in: 0, out: 0 };
+    const inPct  = maxBucket ? (bd.in  / maxBucket) * 100 : 0;
+    const outPct = maxBucket ? (bd.out / maxBucket) * 100 : 0;
+    return `
+      <div class="bucket-bar">
+        <div class="b-label">${BUCKET_LABEL[b]}</div>
+        <div class="b-side in"><span>${fmt(bd.in)}</span><div class="b-fill in" style="width: ${inPct.toFixed(1)}%"></div></div>
+        <div class="b-side out"><div class="b-fill out" style="width: ${outPct.toFixed(1)}%"></div><span>${fmt(bd.out)}</span></div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <section class="panel">
+      <h2>${MONTH_NAMES[month]}</h2>
+      <div class="month-sub">${month} · 2026</div>
+
+      <div class="totals">
+        <div class="total-row in"><span class="lbl">In</span><span></span><span class="num">${fmt(t.in)}</span></div>
+        <div class="total-row out"><span class="lbl">Out</span><span></span><span class="num">${fmt(t.out)}</span></div>
+        <div class="total-row intra"><span class="lbl">Intra</span><span></span><span class="num">${fmt(t.intra)}</span></div>
+      </div>
+
+      <div class="section-label">By bucket</div>
+      ${bucketBars}
+
+      <div class="section-label">By mode</div>
+      <table>
+        <thead><tr><th>Mode</th><th>In</th><th>Out</th></tr></thead>
+        <tbody>${modeRows}</tbody>
+      </table>
+
+      <div class="net ${net >= 0 ? 'pos' : 'neg'}">
+        <span class="lbl">Net (in − out)</span>
+        <span class="val">${fmtSigned(net)}</span>
+      </div>
+    </section>
+  `;
+}
+
+(async () => {
+  const data = await fetch('cbd-grid-data.json').then(r => r.json());
+  document.getElementById('grid').innerHTML =
+    Object.keys(data).map(m => buildPanel(m, data[m])).join('');
+})();
+</script>
+</body>
+</html>

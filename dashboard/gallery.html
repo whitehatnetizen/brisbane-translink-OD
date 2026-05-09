@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TransLink OD — Visualisation Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:,">
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --bg: #f6f1e8;
+  --bg-card: #fbf7f0;
+  --border: #d9cfbf;
+  --border-soft: rgba(217, 207, 191, 0.4);
+  --text-primary: #2a2520;
+  --text-secondary: #6a6258;
+  --text-muted: #95897a;
+  --accent: #b8804a;
+  --accent-soft: rgba(184, 128, 74, 0.18);
+  --bus: #b8804a;
+  --rail: #6b8e6f;
+  --light-rail: #c98b6a;
+  --ferry: #5d8aa8;
+  --shadow: 0 4px 20px rgba(60, 40, 20, 0.08);
+}
+
+[data-theme="dark"] {
+  --bg: #14110d;
+  --bg-card: #1d1915;
+  --border: #322c25;
+  --border-soft: rgba(50, 44, 37, 0.5);
+  --text-primary: #ebe2d4;
+  --text-secondary: #a59b8d;
+  --text-muted: #6f6557;
+  --accent: #d8a06e;
+  --accent-soft: rgba(216, 160, 110, 0.2);
+  --bus: #d8a06e;
+  --rail: #9bbf9f;
+  --light-rail: #f4ad88;
+  --ferry: #7eb1d1;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.app-header {
+  padding: 24px 32px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.app-header h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.7rem;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.app-header .subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+.header-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.btn:hover { color: var(--accent); border-color: var(--accent); }
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-card);
+}
+.btn.primary:hover { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg); }
+
+.gallery {
+  padding: 28px 32px 60px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 20px;
+  max-width: 1640px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(60, 40, 20, 0.12);
+}
+[data-theme="dark"] .card:hover { box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6); }
+.card-thumb {
+  height: 200px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-soft);
+  position: relative;
+  overflow: hidden;
+}
+.card-thumb svg, .card-thumb canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.card-body {
+  padding: 14px 18px 16px;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  margin-bottom: 4px;
+}
+.card-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.card-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.fullview {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+}
+.fullview.visible { display: flex; }
+.fullview-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+.fullview-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+.fullview-stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.fullview-stage svg, .fullview-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.fullview-stage .map-container { position: absolute; inset: 0; }
+.fullview-controls {
+  position: absolute;
+  top: 16px; left: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  z-index: 10;
+  max-width: 280px;
+}
+.fullview-controls .ctl-row { margin-bottom: 6px; }
+.fullview-controls .ctl-row:last-child { margin-bottom: 0; }
+.fullview-controls select, .fullview-controls input[type="range"] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+.fullview-controls .ctl-meta {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  margin-top: 4px;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: 5;
+}
+.loading.hidden { display: none; }
+
+.tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.section-divider {
+  grid-column: 1 / -1;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 18px 0 4px;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
+}
+
+@media (max-width: 720px) {
+  .gallery { padding: 16px 14px 40px; gap: 14px; }
+  .app-header { padding: 16px 18px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div>
+    <h1>Visualisation Gallery</h1>
+    <div class="subtitle">TransLink OD · 8 movement-data techniques</div>
+  </div>
+  <div class="header-controls">
+    <a href="index.html" class="btn">← Main dashboard</a>
+    <button class="btn" id="themeBtn">Dark</button>
+  </div>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<div class="fullview" id="fullview">
+  <div class="fullview-header">
+    <div>
+      <div class="fullview-title" id="fvTitle">—</div>
+    </div>
+    <button class="btn" id="fvClose">× Close</button>
+  </div>
+  <div class="fullview-stage" id="fvStage">
+    <div class="loading hidden" id="fvLoading">Loading data…</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/deck.gl@9.0.36/dist.min.js"></script>
+<script>
+'use strict';
+
+// ---- Data loading (shared across demos) ----
+let DATA = null;
+async function loadData() {
+  if (DATA) return DATA;
+  const [stops, months, stable, hubs, network, busPaths, railPaths, ferryPaths] = await Promise.all([
+    fetch('../data/build/stops.json').then(r => r.json()),
+    fetch('../data/build/months.json').then(r => r.json()),
+    fetch('../data/build/stable_flows.json').then(r => r.json()),
+    fetch('../data/build/hubs.json').then(r => r.json()),
+    fetch('../data/build/network.json').then(r => r.json()).catch(() => null),
+    fetch('../data/build/bus_paths.json').then(r => r.json()).catch(() => null),
+    fetch('../data/build/rail_paths.json').then(r => r.json()).catch(() => null),
+    fetch('../data/build/ferry_paths.json').then(r => r.json()).catch(() => null)
+  ]);
+  DATA = { stops, months, stable, hubs, network, busPaths, railPaths, ferryPaths };
+  // Pick the most recent month with data
+  const monthIds = months.map(m => m.month).sort();
+  DATA.latestMonth = monthIds[monthIds.length - 1];
+  DATA.latestMonthIdx = monthIds.indexOf(DATA.latestMonth);
+  DATA.monthIds = monthIds;
+  return DATA;
+}
+
+const fmt = n => n == null ? '—' : n.toLocaleString();
+const fmtCompact = n => {
+  if (n == null) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(n);
+};
+
+const MODE_RGB = {
+  'Bus':       [184, 128, 74],
+  'Rail':      [107, 142, 111],
+  'Light Rail':[201, 139, 106],
+  'Ferry':     [93, 138, 168]
+};
+const MODE_RGB_DARK = {
+  'Bus':       [216, 160, 110],
+  'Rail':      [155, 191, 159],
+  'Light Rail':[244, 173, 136],
+  'Ferry':     [126, 177, 209]
+};
+const isDarkTheme = () => document.documentElement.dataset.theme === 'dark';
+const palette = () => isDarkTheme() ? MODE_RGB_DARK : MODE_RGB;
+const rgbStr = arr => `rgb(${arr.join(',')})`;
+
+// ---- Demo definitions ----
+const DEMOS = [
+  // — Geographic 3D —
+  {
+    id: 'hex',
+    section: 'Geographic',
+    title: 'Hexbin extrusion',
+    subtitle: 'deck.gl · Uber kepler look',
+    desc: 'Trip destinations binned into hexagons and extruded by volume. Reads as a 3D mass map of where people end up — a physical version of "demand".',
+    tags: ['3D', 'aggregate'],
+    thumb: thumbHex,
+    full: fullHex
+  },
+  {
+    id: 'spider',
+    section: 'Geographic',
+    title: 'Desire-line spider',
+    subtitle: 'O→hub→D · single-pole bundling',
+    desc: 'Every flow drawn as two straight segments through the dominant inbound stop. Hub-and-spoke modes (rail) collapse into a starburst; bus stays distributed.',
+    tags: ['no map', 'topological'],
+    thumb: thumbSpider,
+    full: fullSpider
+  },
+  {
+    id: 'constellation',
+    section: 'Geographic',
+    title: 'Constellation mode',
+    subtitle: 'particles on black · no basemap',
+    desc: 'Trips drawn alone on a dark canvas. Geography emerges from the movement itself. A long-exposure photograph of a transit system.',
+    tags: ['ambient', 'no map'],
+    thumb: thumbConstellation,
+    full: fullConstellation
+  },
+  {
+    id: 'watercolour',
+    section: 'Geographic',
+    title: 'Watercolour basemap',
+    subtitle: 'Stamen tiles · editorial look',
+    desc: 'Same data, painterly basemap. The contrast turns the network into illustration rather than infographic. Pairs well with light particle palettes.',
+    tags: ['cartography'],
+    thumb: thumbWatercolour,
+    full: fullWatercolour
+  },
+  // — Topological / Statistical —
+  {
+    id: 'chord',
+    section: 'Topological',
+    title: 'Chord diagram',
+    subtitle: 'd3-chord · top destinations',
+    desc: 'Circular layout of the top destinations. Each ribbon is the directed flow between a pair, weighted by trip count. Iconic, reads at a glance.',
+    tags: ['no map', 'topological'],
+    thumb: thumbChord,
+    full: fullChord
+  },
+  {
+    id: 'sankey',
+    section: 'Topological',
+    title: 'Sankey diagram',
+    subtitle: 'd3-sankey · mode → bucket → destination',
+    desc: 'Modal flow split by time-of-day, then by destination. Width = trip count. Where attention naturally lands answers "where does the system\'s mass actually go?"',
+    tags: ['no map', 'flow tree'],
+    thumb: thumbSankey,
+    full: fullSankey
+  },
+  // — Time-as-space —
+  {
+    id: 'spiral',
+    section: 'Time',
+    title: 'Time spiral',
+    subtitle: 'd3 · 24h × 117-month spiral',
+    desc: 'Spiral of bucket × month for the system\'s busiest hub. Pre-COVID, the cliff, the trough, and recovery readable as a single shape rather than a chart.',
+    tags: ['no map', 'temporal'],
+    thumb: thumbSpiral,
+    full: fullSpiral
+  },
+  {
+    id: 'marey',
+    section: 'Time',
+    title: 'Marey time-distance',
+    subtitle: 'rail corridor · y=stop, x=time-of-day',
+    desc: 'The classic Marey diagram from 1880s timetable design. Stops on the y-axis, time on the x. Flow magnitude shaded along the slope. Speed and dwell are physically encoded.',
+    tags: ['rail', 'classic'],
+    thumb: thumbMarey,
+    full: fullMarey
+  }
+];
+
+// ---------- THUMBNAILS ----------
+// Each thumb gets a host element; render a cheap, self-contained preview.
+
+async function thumbHex(host) {
+  // Static SVG: fake hex grid, varying heights
+  const svg = d3.select(host).append('svg').attr('viewBox', '0 0 360 200');
+  const g = svg.append('g').attr('transform', 'translate(180,108)');
+  const r = 14;
+  const dx = r * Math.sqrt(3);
+  const dy = r * 1.5;
+  const cells = [];
+  for (let q = -5; q <= 5; q++) for (let s = -3; s <= 3; s++) {
+    const x = dx * (q + s / 2);
+    const y = dy * s;
+    if (Math.hypot(x, y) > 90) continue;
+    cells.push({ x, y });
+  }
+  const baseRgb = isDarkTheme() ? [216, 160, 110] : [184, 128, 74];
+  for (const c of cells) {
+    const dist = Math.hypot(c.x, c.y);
+    const intensity = Math.max(0, 1 - dist / 90);
+    const h = 4 + intensity * intensity * 36;
+    const fillA = 0.3 + intensity * 0.6;
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 3 * i + Math.PI / 6;
+      points.push(`${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`);
+    }
+    // base hex
+    g.append('polygon')
+      .attr('points', points.join(' '))
+      .attr('fill', `rgba(${baseRgb.join(',')},${fillA * 0.4})`)
+      .attr('stroke', `rgba(${baseRgb.join(',')},0.6)`)
+      .attr('stroke-width', 0.5);
+    // extrusion top (offset up by h)
+    const topPoints = points.map(p => {
+      const [px, py] = p.split(',').map(Number);
+      return `${px},${py - h}`;
+    });
+    g.append('polygon')
+      .attr('points', topPoints.join(' '))
+      .attr('fill', `rgba(${baseRgb.join(',')},${fillA})`)
+      .attr('stroke', `rgba(${baseRgb.join(',')},0.9)`)
+      .attr('stroke-width', 0.4);
+  }
+}
+
+async function thumbSpider(host) {
+  const svg = d3.select(host).append('svg').attr('viewBox', '0 0 360 200');
+  const cx = 180, cy = 100;
+  const N = 40;
+  const baseRgb = isDarkTheme() ? [216, 160, 110] : [184, 128, 74];
+  // origins around perimeter
+  const origins = d3.range(N).map(i => {
+    const a = (i / N) * Math.PI * 2;
+    const r = 70 + Math.random() * 18;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+  // hub
+  for (const o of origins) {
+    svg.append('line')
+      .attr('x1', o[0]).attr('y1', o[1])
+      .attr('x2', cx).attr('y2', cy)
+      .attr('stroke', `rgba(${baseRgb.join(',')},0.35)`)
+      .attr('stroke-width', 0.7);
+  }
+  // destinations slightly away from hub
+  for (const o of origins) {
+    const a = Math.atan2(cy - o[1], cx - o[0]) + (Math.random() - 0.5) * 0.6;
+    const r = 28 + Math.random() * 16;
+    const dx = cx + r * Math.cos(a + Math.PI);
+    const dy = cy + r * Math.sin(a + Math.PI);
+    svg.append('line')
+      .attr('x1', cx).attr('y1', cy)
+      .attr('x2', dx).attr('y2', dy)
+      .attr('stroke', `rgba(${baseRgb.join(',')},0.35)`)
+      .attr('stroke-width', 0.7);
+    svg.append('circle').attr('cx', dx).attr('cy', dy).attr('r', 1.4)
+      .attr('fill', `rgba(${baseRgb.join(',')},0.7)`);
+  }
+  for (const o of origins) {
+    svg.append('circle').attr('cx', o[0]).attr('cy', o[1]).attr('r', 1.6)
+      .attr('fill', `rgba(${baseRgb.join(',')},0.85)`);
+  }
+  // hub
+  svg.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 5)
+    .attr('fill', isDarkTheme() ? '#ff8c50' : '#d8743e');
+}
+
+async function thumbConstellation(host) {
+  const svg = d3.select(host).append('svg').attr('viewBox', '0 0 360 200')
+    .style('background', '#07070a');
+  const N = 220;
+  for (let i = 0; i < N; i++) {
+    const x = Math.random() * 360;
+    const y = Math.random() * 200;
+    const a = Math.atan2(100 - y, 180 - x);
+    const len = 4 + Math.random() * 10;
+    svg.append('line')
+      .attr('x1', x).attr('y1', y)
+      .attr('x2', x + len * Math.cos(a))
+      .attr('y2', y + len * Math.sin(a))
+      .attr('stroke', `rgba(255,170,90,${0.2 + Math.random() * 0.5})`)
+      .attr('stroke-width', 0.7);
+  }
+  // a brighter cluster suggesting CBD
+  for (let i = 0; i < 40; i++) {
+    const r = Math.random() * 18;
+    const a = Math.random() * Math.PI * 2;
+    svg.append('circle')
+      .attr('cx', 180 + r * Math.cos(a))
+      .attr('cy', 100 + r * Math.sin(a))
+      .attr('r', 0.8)
+      .attr('fill', `rgba(255,200,140,${0.3 + Math.random() * 0.5})`);
+  }
+}
+
+async function thumbWatercolour(host) {
+  // Static colour-block panes evoking watercolour washes
+  const svg = d3.select(host).append('svg').attr('viewBox', '0 0 360 200');
+  const colours = ['#cdd9c0', '#d8e1c5', '#c8d4dc', '#e9dfc7', '#d3c0a5'];
+  for (let i = 0; i < 30; i++) {
+    svg.append('circle')
+      .attr('cx', Math.random() * 360)
+      .attr('cy', Math.random() * 200)
+      .attr('r', 30 + Math.random() * 60)
+      .attr('fill', colours[i % colours.length])
+      .attr('opacity', 0.35);
+  }
+  // overlay route in warm orange
+  const path = d3.path();
+  path.moveTo(40, 160);
+  path.bezierCurveTo(120, 50, 220, 200, 320, 60);
+  svg.append('path').attr('d', path.toString())
+    .attr('fill', 'none')
+    .attr('stroke', '#c0673b')
+    .attr('stroke-width', 1.5)
+    .attr('opacity', 0.85);
+}
+
+async function thumbChord(host) {
+  const svg = d3.select(host).append('svg').attr('viewBox', '-80 -80 160 160');
+  const N = 12;
+  const innerR = 50;
+  const outerR = 56;
+  const baseRgb = isDarkTheme() ? [216, 160, 110] : [184, 128, 74];
+  // arc segments
+  for (let i = 0; i < N; i++) {
+    const a0 = (i / N) * Math.PI * 2 + 0.05;
+    const a1 = ((i + 1) / N) * Math.PI * 2 - 0.05;
+    const arc = d3.arc().innerRadius(innerR).outerRadius(outerR).startAngle(a0).endAngle(a1);
+    svg.append('path').attr('d', arc())
+      .attr('fill', `rgba(${baseRgb.join(',')},${0.35 + 0.6 * Math.random()})`);
+  }
+  // chord ribbons (pseudo)
+  for (let k = 0; k < 14; k++) {
+    const a = Math.random() * Math.PI * 2;
+    const b = a + Math.PI * 0.6 + Math.random() * 1.2;
+    const p1 = [innerR * Math.cos(a), innerR * Math.sin(a)];
+    const p2 = [innerR * Math.cos(b), innerR * Math.sin(b)];
+    svg.append('path')
+      .attr('d', `M${p1[0]},${p1[1]} Q0,0 ${p2[0]},${p2[1]}`)
+      .attr('stroke', `rgba(${baseRgb.join(',')},${0.15 + Math.random() * 0.3})`)
+      .attr('stroke-width', 1 + Math.random() * 4)
+      .attr('fill', 'none');
+  }
+}
+
+async function thumbSankey(host) {
+  const svg = d3.select(host).append('svg').attr('viewBox', '0 0 360 200');
+  const cols = [
+    [40, 4],
+    [160, 5],
+    [280, 6]
+  ];
+  const baseRgb = isDarkTheme() ? [216, 160, 110] : [184, 128, 74];
+  // nodes
+  for (const [x, n] of cols) {
+    for (let i = 0; i < n; i++) {
+      const y = 30 + (140 / n) * (i + 0.5);
+      svg.append('rect').attr('x', x - 8).attr('y', y - 8).attr('width', 8).attr('height', 16)
+        .attr('fill', rgbStr(baseRgb)).attr('opacity', 0.85);
+    }
+  }
+  // links
+  for (let pass = 0; pass < 2; pass++) {
+    const xa = cols[pass][0], xb = cols[pass + 1][0];
+    const na = cols[pass][1], nb = cols[pass + 1][1];
+    for (let i = 0; i < na; i++) {
+      const ya = 30 + (140 / na) * (i + 0.5);
+      for (let j = 0; j < nb; j++) {
+        const yb = 30 + (140 / nb) * (j + 0.5);
+        const w = 1 + Math.random() * 6;
+        svg.append('path')
+          .attr('d', `M${xa},${ya} C${(xa + xb) / 2},${ya} ${(xa + xb) / 2},${yb} ${xb},${yb}`)
+          .attr('stroke', rgbStr(baseRgb))
+          .attr('stroke-opacity', 0.18)
+          .attr('stroke-width', w)
+          .attr('fill', 'none');
+      }
+    }
+  }
+}
+
+async function thumbSpiral(host) {
+  const svg = d3.select(host).append('svg').attr('viewBox', '-100 -100 200 200');
+  const N = 360;
+  const baseRgb = isDarkTheme() ? [216, 160, 110] : [184, 128, 74];
+  let r = 8;
+  let prev = null;
+  for (let i = 0; i < N; i++) {
+    const a = i * 0.18;
+    r += 0.18;
+    const x = r * Math.cos(a);
+    const y = r * Math.sin(a);
+    if (prev) {
+      // intensity oscillates to suggest peak/trough cycles
+      const t = (Math.sin(a * 1.7) + 1) / 2;
+      svg.append('line')
+        .attr('x1', prev[0]).attr('y1', prev[1])
+        .attr('x2', x).attr('y2', y)
+        .attr('stroke', `rgba(${baseRgb.join(',')},${0.2 + t * 0.65})`)
+        .attr('stroke-width', 1 + t * 1.6);
+    }
+    prev = [x, y];
+  }
+}
+
+async function thumbMarey(host) {
+  const svg = d3.select(host).append('svg').attr('viewBox', '0 0 360 200');
+  // Pseudo-Marey: stops on Y, time on X, slanted lines = trains
+  const W = 360, H = 200;
+  const padX = 30, padY = 20;
+  const stops = ['Cnt', 'Frt', 'Bwn', 'Mil', 'Hrn', 'Wrk', 'Bnd'];
+  const baseRgb = isDarkTheme() ? [155, 191, 159] : [107, 142, 111];
+  // horizontal stop lines
+  for (let i = 0; i < stops.length; i++) {
+    const y = padY + (H - 2 * padY) * (i / (stops.length - 1));
+    svg.append('line').attr('x1', padX).attr('y1', y).attr('x2', W - padX).attr('y2', y)
+      .attr('stroke', isDarkTheme() ? '#322c25' : '#d9cfbf').attr('stroke-width', 0.5);
+    svg.append('text').attr('x', 4).attr('y', y + 3).text(stops[i])
+      .attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 7)
+      .attr('fill', isDarkTheme() ? '#a59b8d' : '#6a6258');
+  }
+  // trains (slanted lines)
+  for (let k = 0; k < 14; k++) {
+    const startT = k * 22 + Math.random() * 8;
+    const x0 = padX + (W - 2 * padX) * (startT / 360);
+    const x1 = x0 + 70 + Math.random() * 30;
+    if (x1 > W - padX) continue;
+    svg.append('line')
+      .attr('x1', x0).attr('y1', padY)
+      .attr('x2', x1).attr('y2', H - padY)
+      .attr('stroke', `rgba(${baseRgb.join(',')},${0.5 + Math.random() * 0.4})`)
+      .attr('stroke-width', 1.4);
+  }
+}
+
+// ---------- FULL VIEWS ----------
+// Each receives the stage element. Loads data, renders to it.
+
+async function withLoading(stage, fn) {
+  const loading = stage.querySelector('.loading') || (() => {
+    const d = document.createElement('div');
+    d.className = 'loading';
+    d.textContent = 'Loading data…';
+    stage.appendChild(d);
+    return d;
+  })();
+  loading.classList.remove('hidden');
+  try {
+    const data = await loadData();
+    loading.classList.add('hidden');
+    await fn(stage, data);
+  } catch (err) {
+    loading.textContent = 'Error: ' + err.message;
+    console.error(err);
+  }
+}
+
+// Full views: hex, spider, constellation, watercolour all use map+deck
+function buildMapStage(stage, styleSpec) {
+  const c = document.createElement('div');
+  c.className = 'map-container';
+  stage.appendChild(c);
+  const map = new maplibregl.Map({
+    container: c,
+    style: styleSpec,
+    center: [153.025, -27.47],
+    zoom: 10,
+    pitch: 40,
+    bearing: -8,
+    attributionControl: false
+  });
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-left');
+  return map;
+}
+
+function destPointsFromStable(data, mode, monthIdx) {
+  const stops = data.stops;
+  const flows = data.stable.flows;
+  const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+  const arr = [];
+  for (const b of buckets) {
+    const rows = flows[`${mode}|${b}`] || [];
+    for (const [, d, qs] of rows) {
+      const q = qs[monthIdx] || 0;
+      if (q <= 0) continue;
+      const sd = stops[d];
+      if (!sd) continue;
+      arr.push({ position: [sd[3], sd[2]], q });
+    }
+  }
+  return arr;
+}
+
+async function fullHex(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const isDark = isDarkTheme();
+    const styleUrl = isDark
+      ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+      : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    const map = buildMapStage(stg, styleUrl);
+    map.on('load', () => {
+      const points = destPointsFromStable(data, 'Bus', data.latestMonthIdx)
+        .concat(destPointsFromStable(data, 'Rail', data.latestMonthIdx));
+      const colorRange = isDark
+        ? [[40, 30, 60], [80, 50, 90], [140, 80, 90], [200, 130, 90], [240, 180, 100], [255, 220, 130]]
+        : [[100, 130, 170], [140, 160, 180], [200, 170, 130], [220, 140, 90], [200, 100, 70], [160, 70, 60]];
+      const overlay = new deck.MapboxOverlay({
+        layers: [
+          new deck.HexagonLayer({
+            id: 'hex-extruded',
+            data: points,
+            getPosition: d => d.position,
+            getElevationWeight: d => d.q,
+            getColorWeight: d => d.q,
+            elevationScale: 8,
+            extruded: true,
+            radius: 600,
+            opacity: 0.85,
+            coverage: 0.92,
+            colorRange
+          })
+        ]
+      });
+      map.addControl(overlay);
+    });
+    addControls(stg, [
+      { type: 'note', text: 'Bus + Rail destinations · ' + data.latestMonth }
+    ]);
+  });
+}
+
+async function fullSpider(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const styleUrl = isDarkTheme()
+      ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+      : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    const map = buildMapStage(stg, styleUrl);
+    let mode = 'Rail';
+    const render = () => {
+      const stops = data.stops;
+      const flows = data.stable.flows;
+      const monthIdx = data.latestMonthIdx;
+      // Pick the dominant inbound stop = hub
+      const acc = new Map();
+      let hubSid = null, hubQ = 0;
+      const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+      for (const b of buckets) {
+        for (const [, d, qs] of (flows[`${mode}|${b}`] || [])) {
+          const q = qs[monthIdx] || 0;
+          if (q <= 0) continue;
+          const cur = (acc.get(d) || 0) + q;
+          acc.set(d, cur);
+          if (cur > hubQ) { hubQ = cur; hubSid = d; }
+        }
+      }
+      if (!hubSid) return;
+      const hubStop = stops[hubSid];
+      const hubPos = [hubStop[3], hubStop[2]];
+      const lines = [];
+      let qMax = 0;
+      for (const b of buckets) {
+        for (const [o, d, qs] of (flows[`${mode}|${b}`] || [])) {
+          const q = qs[monthIdx] || 0;
+          if (q <= 0) continue;
+          const so = stops[o], sd = stops[d];
+          if (!so || !sd) continue;
+          if (q > qMax) qMax = q;
+          lines.push({ path: [[so[3], so[2]], hubPos, [sd[3], sd[2]]], q });
+        }
+      }
+      const ws = qMax > 0 ? 6 / Math.sqrt(qMax) : 0;
+      const rgb = palette()[mode];
+      const overlay = new deck.MapboxOverlay({
+        layers: [
+          new deck.PathLayer({
+            id: 'spider',
+            data: lines,
+            getPath: d => d.path,
+            getColor: [...rgb, 100],
+            getWidth: d => Math.max(0.3, Math.sqrt(d.q) * ws),
+            widthMinPixels: 0.5,
+            widthMaxPixels: 3
+          }),
+          new deck.ScatterplotLayer({
+            id: 'hub',
+            data: [{ position: hubPos }],
+            getPosition: d => d.position,
+            getRadius: 8,
+            getFillColor: [255, 60, 60],
+            radiusUnits: 'pixels'
+          })
+        ]
+      });
+      // remove old controls if present, re-add
+      const old = stg.querySelector('.deck-overlay-marker');
+      if (old) old.remove();
+      map.addControl(overlay);
+      // Show hub label
+      const lbl = stg.querySelector('.hub-label');
+      if (lbl) lbl.textContent = `Hub: ${hubStop[0]} (${fmtCompact(hubQ)} inbound)`;
+    };
+    map.on('load', render);
+    addControls(stg, [
+      { type: 'select', label: 'Mode', options: ['Rail', 'Bus', 'Light Rail', 'Ferry'], value: mode, onChange: v => { mode = v; render(); } },
+      { type: 'div', class: 'hub-label ctl-meta', text: '' }
+    ]);
+  });
+}
+
+async function fullConstellation(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const styleSpec = {
+      version: 8,
+      sources: {},
+      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#06060a' } }]
+    };
+    const map = buildMapStage(stg, styleSpec);
+    map.on('load', () => {
+      const stops = data.stops;
+      const flows = data.stable.flows;
+      const monthIdx = data.latestMonthIdx;
+      // Build PARTICLE FIELD: many small dots along O→D paths for the latest
+      // month, all modes, all buckets. Cap total at 30k.
+      const items = [];
+      const modes = ['Bus', 'Rail', 'Light Rail', 'Ferry'];
+      const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+      let totalQ = 0;
+      for (const m of modes) for (const b of buckets) {
+        for (const [o, d, qs] of (flows[`${m}|${b}`] || [])) {
+          const q = qs[monthIdx] || 0;
+          if (q <= 0) continue;
+          const so = stops[o], sd = stops[d];
+          if (!so || !sd) continue;
+          items.push({ src: [so[3], so[2]], tgt: [sd[3], sd[2]], q, mode: m });
+          totalQ += q;
+        }
+      }
+      const TARGET = 30000;
+      const scale = TARGET / totalQ;
+      const dots = [];
+      for (const it of items) {
+        const n = Math.max(1, Math.round(it.q * scale));
+        for (let k = 0; k < n; k++) {
+          const u = Math.random();
+          const x = it.src[0] + (it.tgt[0] - it.src[0]) * u;
+          const y = it.src[1] + (it.tgt[1] - it.src[1]) * u;
+          dots.push({ position: [x, y], mode: it.mode });
+        }
+      }
+      const PAL = MODE_RGB_DARK;
+      const overlay = new deck.MapboxOverlay({
+        layers: [
+          new deck.ScatterplotLayer({
+            id: 'constellation',
+            data: dots,
+            getPosition: d => d.position,
+            getRadius: 1.6,
+            getFillColor: d => [...PAL[d.mode], 110],
+            radiusUnits: 'pixels',
+            radiusMinPixels: 0.6,
+            stroked: false,
+            parameters: { blend: true, blendFunc: [770, 1], blendEquation: 32774, depthTest: false }
+          })
+        ]
+      });
+      map.addControl(overlay);
+    });
+    addControls(stg, [
+      { type: 'note', text: '~30k particles · all modes · ' + data.latestMonth + ' · additive blend' }
+    ]);
+  });
+}
+
+async function fullWatercolour(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const styleSpec = {
+      version: 8,
+      sources: {
+        watercolour: {
+          type: 'raster',
+          tiles: ['https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg'],
+          tileSize: 256
+        }
+      },
+      layers: [{ id: 'wc', type: 'raster', source: 'watercolour' }]
+    };
+    const map = buildMapStage(stg, styleSpec);
+    map.on('load', () => {
+      // Show GTFS bus paths as ink lines
+      const layers = [];
+      if (data.network) {
+        const paths = [];
+        for (const rid in data.network) {
+          const r = data.network[rid];
+          if (r.mode !== 'Rail' && r.mode !== 'Light Rail' && r.mode !== 'Ferry') continue;
+          if (!r.points || r.points.length < 2) continue;
+          paths.push({ path: r.points, mode: r.mode });
+        }
+        layers.push(new deck.PathLayer({
+          id: 'ink',
+          data: paths,
+          getPath: d => d.path,
+          getColor: d => {
+            const rgb = MODE_RGB[d.mode] || [80, 60, 40];
+            return [Math.round(rgb[0] * 0.5), Math.round(rgb[1] * 0.5), Math.round(rgb[2] * 0.5), 200];
+          },
+          getWidth: 2.5,
+          widthMinPixels: 1.5,
+          widthMaxPixels: 4
+        }));
+      }
+      const overlay = new deck.MapboxOverlay({ layers });
+      map.addControl(overlay);
+    });
+    addControls(stg, [
+      { type: 'note', text: 'Stamen Watercolour basemap · rail / ferry inked over · tiles via Stadia Maps' }
+    ]);
+  });
+}
+
+async function fullChord(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
+    stg.appendChild(wrap);
+    const W = Math.min(window.innerHeight - 80, 880);
+    const svg = d3.select(wrap).append('svg').attr('viewBox', `${-W/2} ${-W/2} ${W} ${W}`).style('width', W + 'px').style('height', W + 'px');
+
+    // Top-N hubs across all modes/buckets, latest month
+    const stops = data.stops;
+    const flows = data.stable.flows;
+    const monthIdx = data.latestMonthIdx;
+    const N_HUBS = 28;
+
+    // Aggregate inbound + outbound per stop
+    const pairTotals = new Map();   // 'o\td' -> q
+    const stopTotals = new Map();
+    const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+    const modes = ['Bus', 'Rail', 'Light Rail', 'Ferry'];
+    for (const m of modes) for (const b of buckets) {
+      for (const [o, d, qs] of (flows[`${m}|${b}`] || [])) {
+        const q = qs[monthIdx] || 0;
+        if (q <= 0) continue;
+        stopTotals.set(o, (stopTotals.get(o) || 0) + q);
+        stopTotals.set(d, (stopTotals.get(d) || 0) + q);
+        const k = `${o}\t${d}`;
+        pairTotals.set(k, (pairTotals.get(k) || 0) + q);
+      }
+    }
+    const topStops = [...stopTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, N_HUBS);
+    const indexById = new Map();
+    topStops.forEach(([sid], i) => indexById.set(sid, i));
+    const matrix = Array.from({ length: N_HUBS }, () => Array.from({ length: N_HUBS }, () => 0));
+    for (const [k, q] of pairTotals) {
+      const [o, d] = k.split('\t');
+      const i = indexById.get(o), j = indexById.get(d);
+      if (i === undefined || j === undefined) continue;
+      matrix[i][j] += q;
+    }
+
+    const innerR = W * 0.36;
+    const outerR = W * 0.39;
+    const chord = d3.chord().padAngle(0.025).sortSubgroups(d3.descending);
+    const chords = chord(matrix);
+    const arc = d3.arc().innerRadius(innerR).outerRadius(outerR);
+    const ribbon = d3.ribbon().radius(innerR);
+
+    const isDark = isDarkTheme();
+    const colour = d3.scaleOrdinal()
+      .domain(d3.range(N_HUBS))
+      .range(isDark
+        ? d3.range(N_HUBS).map(i => d3.interpolateWarm(i / N_HUBS))
+        : d3.range(N_HUBS).map(i => d3.interpolateRdYlBu(i / N_HUBS)));
+
+    // groups (arcs + labels)
+    const g = svg.selectAll('.group').data(chords.groups).enter().append('g');
+    g.append('path')
+      .attr('d', arc)
+      .attr('fill', d => colour(d.index))
+      .attr('stroke', isDark ? '#000' : '#fff')
+      .attr('stroke-width', 0.4);
+    g.append('text')
+      .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
+      .attr('dy', '0.35em')
+      .attr('transform', d => `rotate(${(d.angle * 180 / Math.PI - 90).toFixed(1)}) translate(${(outerR + 6).toFixed(1)}) ${d.angle > Math.PI ? 'rotate(180)' : ''}`)
+      .attr('text-anchor', d => d.angle > Math.PI ? 'end' : 'start')
+      .attr('font-family', 'DM Sans, sans-serif')
+      .attr('font-size', 11)
+      .attr('fill', isDark ? '#ebe2d4' : '#2a2520')
+      .text(d => stops[topStops[d.index][0]][0]);
+
+    // ribbons
+    svg.selectAll('.chord').data(chords).enter().append('path')
+      .attr('d', ribbon)
+      .attr('fill', d => colour(d.target.index))
+      .attr('opacity', 0.55)
+      .append('title')
+      .text(d => {
+        const o = stops[topStops[d.source.index][0]][0];
+        const t = stops[topStops[d.target.index][0]][0];
+        return `${o} → ${t}: ${fmt(matrix[d.source.index][d.target.index])} trips/month`;
+      });
+
+    addControls(stg, [
+      { type: 'note', text: `Top ${N_HUBS} hubs · all modes · ${data.latestMonth}` }
+    ]);
+  });
+}
+
+async function fullSankey(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'width:100%;height:100%;padding:24px;';
+    stg.appendChild(wrap);
+    const W = wrap.clientWidth - 48;
+    const H = wrap.clientHeight - 48;
+    const svg = d3.select(wrap).append('svg').attr('viewBox', `0 0 ${W} ${H}`).style('width', '100%').style('height', '100%');
+
+    const stops = data.stops;
+    const flows = data.stable.flows;
+    const monthIdx = data.latestMonthIdx;
+    const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+    const bucketLabels = { wd_early: 'AM peak', wd_mid: 'Midday', wd_pmpeak: 'PM peak', wd_eve: 'Evening', wkend: 'Weekend' };
+    const modes = ['Bus', 'Rail', 'Light Rail', 'Ferry'];
+
+    // Build: mode → bucket → top destinations (top 12)
+    const destTotals = new Map();
+    for (const m of modes) for (const b of buckets) {
+      for (const [, d, qs] of (flows[`${m}|${b}`] || [])) {
+        const q = qs[monthIdx] || 0;
+        if (q > 0) destTotals.set(d, (destTotals.get(d) || 0) + q);
+      }
+    }
+    const TOP_DESTS = 12;
+    const topDestList = [...destTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOP_DESTS).map(x => x[0]);
+    const topDestSet = new Set(topDestList);
+
+    const nodes = [];
+    const idIdx = new Map();
+    const addNode = id => {
+      if (idIdx.has(id)) return idIdx.get(id);
+      const i = nodes.length;
+      nodes.push({ id });
+      idIdx.set(id, i);
+      return i;
+    };
+    for (const m of modes) addNode('m:' + m);
+    for (const b of buckets) addNode('b:' + b);
+    for (const d of topDestList) addNode('d:' + d);
+    addNode('d:other');
+
+    const linkMap = new Map();
+    const bumpLink = (s, t, v) => {
+      const k = s + '|' + t;
+      linkMap.set(k, (linkMap.get(k) || 0) + v);
+    };
+    for (const m of modes) for (const b of buckets) {
+      let total = 0;
+      let perDest = new Map();
+      for (const [, d, qs] of (flows[`${m}|${b}`] || [])) {
+        const q = qs[monthIdx] || 0;
+        if (q <= 0) continue;
+        total += q;
+        const dKey = topDestSet.has(d) ? d : 'other';
+        perDest.set(dKey, (perDest.get(dKey) || 0) + q);
+      }
+      if (total <= 0) continue;
+      bumpLink('m:' + m, 'b:' + b, total);
+      for (const [d, q] of perDest) bumpLink('b:' + b, 'd:' + d, q);
+    }
+    const links = [];
+    for (const [k, v] of linkMap) {
+      const [s, t] = k.split('|');
+      links.push({ source: idIdx.get(s), target: idIdx.get(t), value: v });
+    }
+
+    const sankey = d3.sankey()
+      .nodeWidth(14)
+      .nodePadding(10)
+      .extent([[120, 12], [W - 220, H - 12]]);
+
+    const graph = sankey({
+      nodes: nodes.map(n => Object.assign({}, n)),
+      links: links.map(l => Object.assign({}, l))
+    });
+
+    const isDark = isDarkTheme();
+    svg.append('g').selectAll('rect').data(graph.nodes).enter().append('rect')
+      .attr('x', d => d.x0).attr('y', d => d.y0)
+      .attr('width', d => d.x1 - d.x0)
+      .attr('height', d => d.y1 - d.y0)
+      .attr('fill', d => {
+        if (d.id.startsWith('m:')) return rgbStr((isDark ? MODE_RGB_DARK : MODE_RGB)[d.id.slice(2)] || [120, 120, 120]);
+        if (d.id.startsWith('b:')) return isDark ? '#a59b8d' : '#6a6258';
+        return isDark ? '#d8a06e' : '#b8804a';
+      })
+      .attr('opacity', 0.85);
+
+    svg.append('g').attr('fill', 'none').selectAll('path').data(graph.links).enter().append('path')
+      .attr('d', d3.sankeyLinkHorizontal())
+      .attr('stroke', d => {
+        const src = graph.nodes[d.source.index];
+        if (src.id.startsWith('m:')) return rgbStr((isDark ? MODE_RGB_DARK : MODE_RGB)[src.id.slice(2)] || [120, 120, 120]);
+        return isDark ? '#a59b8d' : '#95897a';
+      })
+      .attr('stroke-opacity', 0.4)
+      .attr('stroke-width', d => Math.max(1, d.width));
+
+    svg.append('g').selectAll('text').data(graph.nodes).enter().append('text')
+      .attr('x', d => d.x0 < W / 2 ? d.x1 + 6 : d.x0 - 6)
+      .attr('y', d => (d.y0 + d.y1) / 2)
+      .attr('dy', '0.35em')
+      .attr('text-anchor', d => d.x0 < W / 2 ? 'start' : 'end')
+      .attr('font-family', 'DM Sans, sans-serif')
+      .attr('font-size', 11)
+      .attr('fill', isDark ? '#ebe2d4' : '#2a2520')
+      .text(d => {
+        if (d.id.startsWith('m:')) return d.id.slice(2);
+        if (d.id.startsWith('b:')) return bucketLabels[d.id.slice(2)] || d.id;
+        if (d.id === 'd:other') return 'Other destinations';
+        const sid = d.id.slice(2);
+        const s = stops[sid];
+        return s ? s[0] : sid;
+      });
+
+    addControls(stg, [
+      { type: 'note', text: `Mode → time-of-day → top ${TOP_DESTS} destinations · ${data.latestMonth}` }
+    ]);
+  });
+}
+
+async function fullSpiral(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
+    stg.appendChild(wrap);
+    const W = Math.min(window.innerHeight - 80, 800);
+    const svg = d3.select(wrap).append('svg').attr('viewBox', `${-W/2} ${-W/2} ${W} ${W}`).style('width', W + 'px').style('height', W + 'px');
+
+    const stops = data.stops;
+    const months = data.monthIds;
+    // Pick the busiest stop overall as the spiral subject.
+    const stopTotals = new Map();
+    const flows = data.stable.flows;
+    const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+    const modes = ['Bus', 'Rail', 'Light Rail', 'Ferry'];
+    for (const m of modes) for (const b of buckets) {
+      for (const [, d, qs] of (flows[`${m}|${b}`] || [])) {
+        let s = 0;
+        for (const q of qs) s += q;
+        stopTotals.set(d, (stopTotals.get(d) || 0) + s);
+      }
+    }
+    const [topSid] = [...stopTotals.entries()].sort((a, b) => b[1] - a[1])[0];
+    const topName = stops[topSid][0];
+
+    // For each (month, bucket) compute inbound to topSid
+    // Spiral: each angular step = one bucket. So 5 buckets per month, N months total.
+    const isDark = isDarkTheme();
+    const bucketColours = isDark
+      ? { wd_early: '#ff8c50', wd_mid: '#d8a06e', wd_pmpeak: '#9bbf9f', wd_eve: '#7eb1d1', wkend: '#a59b8d' }
+      : { wd_early: '#d8743e', wd_mid: '#b8804a', wd_pmpeak: '#6b8e6f', wd_eve: '#5d8aa8', wkend: '#95897a' };
+
+    const cells = [];
+    let qMax = 0;
+    for (let mi = 0; mi < months.length; mi++) {
+      for (let bi = 0; bi < buckets.length; bi++) {
+        const b = buckets[bi];
+        let q = 0;
+        for (const m of modes) {
+          for (const [, d, qs] of (flows[`${m}|${b}`] || [])) {
+            if (d !== topSid) continue;
+            q += qs[mi] || 0;
+          }
+        }
+        if (q > qMax) qMax = q;
+        cells.push({ mi, bi, b, q });
+      }
+    }
+
+    // Spiral layout: angle increments smoothly, radius grows with index.
+    const total = cells.length;
+    const innerR = 60, outerR = W * 0.46;
+    cells.forEach((c, i) => {
+      const t = i / total;
+      const a = i * (Math.PI * 2 / 5);  // one rev = 5 buckets = 1 month's worth
+      const r = innerR + (outerR - innerR) * t;
+      c.x = r * Math.cos(a - Math.PI / 2);
+      c.y = r * Math.sin(a - Math.PI / 2);
+      c.r = r;
+      c.a = a;
+    });
+
+    // Draw segments connecting consecutive cells, intensity by q
+    for (let i = 1; i < cells.length; i++) {
+      const c0 = cells[i - 1], c1 = cells[i];
+      const intensity = qMax > 0 ? Math.sqrt(c1.q / qMax) : 0;
+      svg.append('line')
+        .attr('x1', c0.x).attr('y1', c0.y)
+        .attr('x2', c1.x).attr('y2', c1.y)
+        .attr('stroke', bucketColours[c1.b])
+        .attr('stroke-opacity', 0.2 + intensity * 0.7)
+        .attr('stroke-width', 0.6 + intensity * 3)
+        .attr('stroke-linecap', 'round');
+    }
+
+    // Year labels on the outer edge
+    for (let mi = 0; mi < months.length; mi += 12) {
+      const c = cells[mi * 5];
+      if (!c) continue;
+      svg.append('text')
+        .attr('x', c.x * 1.04).attr('y', c.y * 1.04)
+        .attr('text-anchor', 'middle')
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .attr('font-size', 8)
+        .attr('fill', isDark ? '#a59b8d' : '#6a6258')
+        .text(months[mi].slice(0, 4));
+    }
+
+    // Centre label
+    svg.append('text').attr('x', 0).attr('y', -8)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', 'Cormorant Garamond, serif')
+      .attr('font-size', 22)
+      .attr('font-weight', 600)
+      .attr('fill', isDark ? '#ebe2d4' : '#2a2520')
+      .text(topName);
+    svg.append('text').attr('x', 0).attr('y', 14)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', 'JetBrains Mono, monospace')
+      .attr('font-size', 9)
+      .attr('letter-spacing', '0.08em')
+      .attr('fill', isDark ? '#6f6557' : '#95897a')
+      .text(`${months[0].slice(0,4)}–${months[months.length-1].slice(0,4)} · 5 buckets/month`);
+
+    addControls(stg, [
+      { type: 'note', text: 'Each turn = one month. Five colours = AM / Mid / PM peak / Eve / Wkend. Radius grows over time → centre is 2016, edge is 2026.' }
+    ]);
+  });
+}
+
+async function fullMarey(stage) {
+  await withLoading(stage, async (stg, data) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'width:100%;height:100%;padding:24px;overflow:auto;';
+    stg.appendChild(wrap);
+
+    if (!data.railPaths) {
+      wrap.textContent = 'rail_paths.json not found — run build_rail_paths.py';
+      return;
+    }
+
+    let routeKey = null;
+    let routeNames = Object.keys(data.railPaths.routes).sort();
+    routeKey = routeNames.includes('Cleveland') ? 'Cleveland'
+      : routeNames.includes('Ferny Grove') ? 'Ferny Grove'
+      : routeNames[0];
+
+    const render = () => {
+      // Empty existing render
+      wrap.querySelectorAll('svg').forEach(s => s.remove());
+      const svg = d3.select(wrap).append('svg').attr('width', '100%').attr('height', wrap.clientHeight - 16);
+
+      const stops = data.stops;
+      const route = data.railPaths.routes[routeKey];
+      if (!route) {
+        wrap.querySelectorAll('svg').forEach(s => s.remove());
+        const err = document.createElement('div');
+        err.textContent = 'Route not found: ' + routeKey;
+        wrap.appendChild(err);
+        return;
+      }
+      // Find stop ids served by this route
+      const stopIds = [];
+      for (const sid in data.railPaths.stops) {
+        const arr = data.railPaths.stops[sid];
+        if (arr.find(([rn]) => rn === routeKey)) {
+          const idx = arr.find(([rn]) => rn === routeKey)[1];
+          stopIds.push({ sid, idx });
+        }
+      }
+      stopIds.sort((a, b) => a.idx - b.idx);
+
+      const flows = data.stable.flows;
+      const monthIdx = data.latestMonthIdx;
+      const buckets = ['wd_early', 'wd_mid', 'wd_pmpeak', 'wd_eve', 'wkend'];
+      // Per-bucket inbound q to each stop
+      const inbound = stopIds.map(s => {
+        const row = { sid: s.sid, idx: s.idx, q: {} };
+        for (const b of buckets) {
+          row.q[b] = 0;
+          for (const [, d, qs] of (flows[`Rail|${b}`] || [])) {
+            if (d !== s.sid) continue;
+            row.q[b] += qs[monthIdx] || 0;
+          }
+        }
+        return row;
+      });
+      const qMax = Math.max(1, ...inbound.flatMap(r => Object.values(r.q)));
+
+      const W = wrap.clientWidth - 48;
+      const H = Math.max(stopIds.length * 24 + 80, wrap.clientHeight - 32);
+      svg.attr('viewBox', `0 0 ${W} ${H}`);
+
+      const padL = 160, padR = 24, padT = 28, padB = 18;
+      const yScale = d3.scalePoint().domain(stopIds.map(s => s.sid)).range([padT, H - padB]).padding(0.4);
+      const xScale = d3.scalePoint().domain(buckets).range([padL, W - padR]).padding(0.5);
+
+      const isDark = isDarkTheme();
+      const railRgb = isDark ? [155, 191, 159] : [107, 142, 111];
+
+      // Stop horizontal lines + labels
+      for (const s of stopIds) {
+        const y = yScale(s.sid);
+        svg.append('line').attr('x1', padL).attr('y1', y).attr('x2', W - padR).attr('y2', y)
+          .attr('stroke', isDark ? '#322c25' : '#d9cfbf').attr('stroke-width', 0.5);
+        svg.append('text').attr('x', padL - 6).attr('y', y).attr('dy', '0.35em')
+          .attr('text-anchor', 'end')
+          .attr('font-family', 'DM Sans, sans-serif')
+          .attr('font-size', 10)
+          .attr('fill', isDark ? '#ebe2d4' : '#2a2520')
+          .text((stops[s.sid] && stops[s.sid][0]) || s.sid);
+      }
+
+      // Bucket labels
+      for (const b of buckets) {
+        const x = xScale(b);
+        svg.append('text').attr('x', x).attr('y', padT - 8)
+          .attr('text-anchor', 'middle')
+          .attr('font-family', 'JetBrains Mono, monospace')
+          .attr('font-size', 9)
+          .attr('text-transform', 'uppercase')
+          .attr('fill', isDark ? '#a59b8d' : '#6a6258')
+          .text(b.replace('wd_', '').replace('wkend', 'Wknd'));
+      }
+
+      // For each adjacent stop pair × bucket, draw a slanted line whose
+      // thickness = inbound[next_stop][bucket]. This is the "trains in motion"
+      // glyph — slope reveals which segment is busiest at which time.
+      for (let i = 0; i < stopIds.length - 1; i++) {
+        const a = stopIds[i], b2 = stopIds[i + 1];
+        const ya = yScale(a.sid), yb = yScale(b2.sid);
+        for (let bi = 0; bi < buckets.length; bi++) {
+          const x0 = xScale(buckets[bi]) - 10;
+          const x1 = xScale(buckets[bi]) + 10;
+          const q = inbound[i + 1].q[buckets[bi]];
+          const intensity = Math.sqrt(q / qMax);
+          if (intensity < 0.05) continue;
+          svg.append('line')
+            .attr('x1', x0).attr('y1', ya).attr('x2', x1).attr('y2', yb)
+            .attr('stroke', `rgba(${railRgb.join(',')},${0.25 + intensity * 0.6})`)
+            .attr('stroke-width', 0.8 + intensity * 4)
+            .attr('stroke-linecap', 'round');
+        }
+      }
+
+      // Inbound dots at each (stop, bucket) intersection
+      for (let i = 0; i < stopIds.length; i++) {
+        for (const b of buckets) {
+          const q = inbound[i].q[b];
+          if (q <= 0) continue;
+          const x = xScale(b);
+          const y = yScale(stopIds[i].sid);
+          svg.append('circle')
+            .attr('cx', x).attr('cy', y)
+            .attr('r', 1 + Math.sqrt(q / qMax) * 6)
+            .attr('fill', `rgba(${railRgb.join(',')},0.85)`)
+            .append('title')
+            .text(`${stops[stopIds[i].sid][0]} · ${b}: ${fmt(q)} trips`);
+        }
+      }
+    };
+
+    addControls(stg, [
+      { type: 'select', label: 'Rail line', options: routeNames, value: routeKey, onChange: v => { routeKey = v; render(); } },
+      { type: 'note', text: 'Stops on Y · time-of-day on X · slope thickness = inbound per segment · ' + data.latestMonth }
+    ]);
+    render();
+  });
+}
+
+// ---------- Controls helper ----------
+// Builds an absolutely-positioned control panel inside the stage with
+// consistent styling. Used by every full view.
+function addControls(stg, items) {
+  const panel = document.createElement('div');
+  panel.className = 'fullview-controls';
+  for (const it of items) {
+    const row = document.createElement('div');
+    row.className = 'ctl-row';
+    if (it.type === 'select') {
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:3px;';
+      lbl.textContent = it.label;
+      row.appendChild(lbl);
+      const sel = document.createElement('select');
+      for (const o of it.options) {
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        if (o === it.value) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener('change', e => it.onChange(e.target.value));
+      row.appendChild(sel);
+    } else if (it.type === 'note') {
+      row.className += ' ctl-meta';
+      row.textContent = it.text;
+    } else if (it.type === 'div') {
+      if (it.class) row.className = it.class;
+      row.textContent = it.text || '';
+    }
+    panel.appendChild(row);
+  }
+  stg.appendChild(panel);
+}
+
+// ---------- Gallery rendering ----------
+const grid = document.getElementById('gallery');
+
+function renderGallery() {
+  grid.innerHTML = '';
+  // Group by section
+  const sections = {};
+  for (const d of DEMOS) {
+    if (!sections[d.section]) sections[d.section] = [];
+    sections[d.section].push(d);
+  }
+  for (const sectionName of ['Geographic', 'Topological', 'Time']) {
+    const heading = document.createElement('div');
+    heading.className = 'section-divider';
+    heading.textContent = sectionName;
+    grid.appendChild(heading);
+    for (const d of sections[sectionName] || []) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-thumb"></div>
+        <div class="card-body">
+          <div class="card-title">${d.title}</div>
+          <div class="card-subtitle">${d.subtitle}</div>
+          <div class="card-desc">${d.desc}</div>
+          <div style="margin-top: 8px;">${d.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+      `;
+      const thumbHost = card.querySelector('.card-thumb');
+      try {
+        d.thumb(thumbHost);
+      } catch (e) {
+        thumbHost.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text-muted);font-family:var(--font-mono);font-size:0.7rem;">preview unavailable</div>`;
+      }
+      card.addEventListener('click', () => openDemo(d));
+      grid.appendChild(card);
+    }
+  }
+}
+
+function openDemo(d) {
+  const fv = document.getElementById('fullview');
+  const stage = document.getElementById('fvStage');
+  document.getElementById('fvTitle').textContent = d.title;
+  // Reset stage
+  stage.innerHTML = `<div class="loading hidden" id="fvLoading">Loading data…</div>`;
+  fv.classList.add('visible');
+  location.hash = '#demo=' + d.id;
+  d.full(stage);
+}
+
+function closeDemo() {
+  const fv = document.getElementById('fullview');
+  fv.classList.remove('visible');
+  document.getElementById('fvStage').innerHTML = '';
+  history.replaceState(null, '', location.pathname);
+}
+
+document.getElementById('fvClose').addEventListener('click', closeDemo);
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDemo();
+});
+window.addEventListener('hashchange', maybeRouteFromHash);
+function maybeRouteFromHash() {
+  const m = location.hash.match(/demo=([\w-]+)/);
+  if (!m) { closeDemo(); return; }
+  const d = DEMOS.find(x => x.id === m[1]);
+  if (d) openDemo(d);
+}
+
+// ---------- Theme ----------
+const themeBtn = document.getElementById('themeBtn');
+const setTheme = t => {
+  document.documentElement.dataset.theme = t;
+  themeBtn.textContent = t === 'dark' ? 'Light' : 'Dark';
+  try { localStorage.setItem('translinkOdTheme', t); } catch (e) {}
+  // Re-render gallery thumbnails — most use theme colours
+  renderGallery();
+};
+const saved = (() => { try { return localStorage.getItem('translinkOdTheme'); } catch (e) { return null; }})();
+if (saved) setTheme(saved); else setTheme('light');
+themeBtn.addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+renderGallery();
+maybeRouteFromHash();
+</script>
+
+</body>
+</html>
